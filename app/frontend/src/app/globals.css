@@ -1,0 +1,136 @@
+@import "tailwindcss";
+@import "@xyflow/react/dist/style.css";
+
+:root {
+  --bg-deep: #f9f8f6;
+  --bg-surface: #ffffff;
+  --bg-elevated: #f2f1ee;
+  --bg-hover: #ebeae7;
+  --bg-tint: #eef5f2;
+  --border-subtle: #e5e3df;
+  --border-medium: #d0cec9;
+  --text-primary: #1c1b19;
+  --text-secondary: #5c5b57;
+  --text-tertiary: #9c9b96;
+  --accent: #0f766e;
+  --accent-dim: #0d6c65;
+  --teal: #059669;
+  --teal-dim: #047857;
+  --rose: #b91c1c;
+  --violet: #7c3aed;
+  --blue: #2563eb;
+}
+
+@theme inline {
+  --color-bg-deep: var(--bg-deep);
+  --color-bg-surface: var(--bg-surface);
+  --color-bg-elevated: var(--bg-elevated);
+  --color-bg-hover: var(--bg-hover);
+  --color-bg-tint: var(--bg-tint);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-medium: var(--border-medium);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
+  --color-accent: var(--accent);
+  --color-accent-dim: var(--accent-dim);
+  --color-teal: var(--teal);
+  --color-rose: var(--rose);
+  --color-violet: var(--violet);
+  --color-blue: var(--blue);
+}
+
+html, body {
+  background:
+    radial-gradient(circle at top left, rgba(15, 118, 110, 0.08), transparent 28%),
+    radial-gradient(circle at top right, rgba(124, 58, 237, 0.07), transparent 24%),
+    linear-gradient(180deg, #fcfbf9 0%, #f5f2eb 100%);
+  color: var(--text-primary);
+  min-height: 100%;
+}
+
+body {
+  font-family: "Plus Jakarta Sans", sans-serif;
+}
+
+.font-serif-display {
+  font-family: "Instrument Serif", serif;
+}
+
+.font-mono-ui {
+  font-family: "JetBrains Mono", monospace;
+}
+
+.react-flow__attribution {
+  display: none;
+}
+
+.react-flow__node {
+  cursor: default;
+}
+
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-in-right {
+  from { opacity: 0; transform: translateX(20px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes shimmer {
+  from { background-position: -200% 0; }
+  to { background-position: 200% 0; }
+}
+
+@keyframes float-slow {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.03); }
+}
+
+@keyframes dash-flow {
+  from { stroke-dashoffset: 0; }
+  to { stroke-dashoffset: -18; }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.5s ease both;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.4s ease both;
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, #f2f1ee 25%, #ebeae7 50%, #f2f1ee 75%);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite linear;
+}
+
+.animate-float-slow {
+  animation: float-slow 4s ease-in-out infinite;
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 2.4s ease-in-out infinite;
+}
+
+.animate-dash-flow {
+  animation: dash-flow 1.5s linear infinite;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-medium);
+  border-radius: 999px;
+}

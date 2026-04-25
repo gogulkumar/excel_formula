@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+app/.env
+app/secrets.json
+app/backend/uploads/
+app/frontend/.next/
+app/frontend/node_modules/
+dist/
+
