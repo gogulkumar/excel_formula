@@ -23,6 +23,7 @@ export function ProductTour() {
       const legacySeen = window.localStorage.getItem(key);
       if (!legacySeen) continue;
       window.localStorage.setItem(TOUR_KEY, legacySeen);
+      window.localStorage.removeItem(key);
       return;
     }
 
