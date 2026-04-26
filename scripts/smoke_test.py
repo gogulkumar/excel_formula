@@ -80,9 +80,10 @@ def build_workbook(path: Path) -> None:
     wb.save(path)
 
 
-def run_smoke(base_url: str, include_llm: bool) -> None:
+def run_smoke(base_url: str, include_llm: bool, discovery_path: Path | None = None) -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
-        workbook_path = Path(tmpdir) / "smoke.xlsx"
+        tmp_root = Path(tmpdir)
+        workbook_path = tmp_root / "smoke.xlsx"
         build_workbook(workbook_path)
         with workbook_path.open("rb") as fh:
             response = httpx.post(
@@ -153,6 +154,47 @@ def run_smoke(base_url: str, include_llm: bool) -> None:
         cleanup = httpx.delete(f"{base_url}/api/files/{file_id}", timeout=10.0).json()
         assert cleanup["ok"] is True, cleanup
 
+        csv_path = Path(tmpdir) / "smoke.csv"
+        csv_path.write_text(
+            "Metric,Q1,Q2,Total\n"
+            "Revenue,100,110,=B2+C2\n"
+            "Costs,40,45,=B3+C3\n"
+            "Profit,=B2-B3,=C2-C3,=D2-D3\n"
+        )
+        with csv_path.open("rb") as fh:
+            csv_response = httpx.post(
+                f"{base_url}/api/upload",
+                files={"file": (csv_path.name, fh, "text/csv")},
+                timeout=30.0,
+            )
+        csv_response.raise_for_status()
+        csv_events = parse_sse_text(csv_response.text)
+        csv_done = next((event for event in csv_events if event.get("done")), None)
+        assert csv_done, csv_events
+        csv_file_id = str(csv_done["file_id"])
+        csv_sheet = httpx.get(f"{base_url}/api/sheet/{csv_file_id}/Sheet1", timeout=10.0).json()
+        assert csv_sheet["headers"][:4] == ["A", "B", "C", "D"], csv_sheet
+        csv_trace = httpx.post(
+            f"{base_url}/api/trace",
+            json={"file_id": csv_file_id, "sheet": "Sheet1", "cell": "D4"},
+            timeout=10.0,
+        ).json()
+        assert csv_trace["formula"] == "=D2-D3", csv_trace
+        csv_cleanup = httpx.delete(f"{base_url}/api/files/{csv_file_id}", timeout=10.0).json()
+        assert csv_cleanup["ok"] is True, csv_cleanup
+
+        if discovery_path is not None:
+            local_files = httpx.get(f"{base_url}/api/local-files", timeout=10.0).json()
+            assert any(item["path"] == str(discovery_path) for item in local_files), local_files
+            local_import = httpx.post(
+                f"{base_url}/api/local-files/import",
+                json={"path": str(discovery_path)},
+                timeout=30.0,
+            ).json()
+            assert local_import["filename"] == discovery_path.name, local_import
+            local_cleanup = httpx.delete(f"{base_url}/api/files/{local_import['file_id']}", timeout=10.0).json()
+            assert local_cleanup["ok"] is True, local_cleanup
+
 
 def main() -> int:
     parser = argparse.ArgumentParser()
@@ -167,13 +209,21 @@ def main() -> int:
             env = os.environ.copy()
             env.setdefault("PYTHONPATH", str(REPO_ROOT / "app"))
             env.setdefault("EFT_LLM_MODE", "mock")
-            server = subprocess.Popen(
-                [str(PYTHON_BIN), "-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", "8000"],
-                cwd=BACKEND_DIR,
-                env=env,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
+            with tempfile.TemporaryDirectory() as discovery_root:
+                smoke_path = Path(discovery_root) / "smoke.xlsx"
+                build_workbook(smoke_path)
+                env["EFT_LOCAL_DISCOVERY_ROOTS"] = discovery_root
+                server = subprocess.Popen(
+                    [str(PYTHON_BIN), "-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", "8000"],
+                    cwd=BACKEND_DIR,
+                    env=env,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                wait_for_ping(args.base_url)
+                run_smoke(args.base_url, args.include_llm, smoke_path)
+                print("smoke test passed")
+                return 0
         wait_for_ping(args.base_url)
         run_smoke(args.base_url, args.include_llm)
         print("smoke test passed")

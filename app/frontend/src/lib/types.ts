@@ -27,6 +27,14 @@ export interface FileEntry {
   sheets: string[];
 }
 
+export interface LocalFileEntry {
+  path: string;
+  filename: string;
+  directory: string;
+  size_bytes: number;
+  modified_at: number;
+}
+
 export interface SheetData {
   headers: string[];
   rows: Cell[][];
@@ -85,4 +93,3 @@ export interface TopMetricDetail {
   sheets_involved: string[];
   formula_text: string;
 }
-

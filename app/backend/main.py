@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import csv
 import json
+import os
 import re
 import shutil
 import sys
@@ -14,7 +16,7 @@ from urllib.parse import unquote
 from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
-from openpyxl import load_workbook
+from openpyxl import Workbook, load_workbook
 from openpyxl.formula.tokenizer import Tokenizer
 from openpyxl.utils import get_column_letter, range_boundaries
 
@@ -27,9 +29,17 @@ from llm_client import LLMClient
 
 
 app = FastAPI(title="Excel Formula Tracer")
+_cors_origins = [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "http://localhost:8080",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:3001",
+    "http://127.0.0.1:8080",
+]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:8080"],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -45,6 +55,52 @@ store: dict[str, dict[str, Any]] = {}
 ref_index_cache: dict[str, dict[str, list[tuple[str, str]]]] = {}
 sheet_cache: dict[str, dict[str, Any]] = {}
 tables_cache: dict[str, list[dict[str, Any]]] = {}
+LOCAL_FILE_LIMIT = 200
+
+
+def _load_csv_workbook(raw: bytes):
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Sheet1"
+    text = None
+    for encoding in ("utf-8-sig", "utf-8", "cp1252", "latin-1"):
+        try:
+            text = raw.decode(encoding)
+            break
+        except UnicodeDecodeError:
+            continue
+    if text is None:
+        raise ValueError("Could not decode CSV file with utf-8, cp1252, or latin-1")
+    reader = csv.reader(text.splitlines())
+    for row_idx, row in enumerate(reader, start=1):
+        for col_idx, value in enumerate(row, start=1):
+            if isinstance(value, str) and value.startswith("="):
+                ws.cell(row=row_idx, column=col_idx, value=value)
+                continue
+            if value == "":
+                ws.cell(row=row_idx, column=col_idx, value="")
+                continue
+            try:
+                if "." in value:
+                    ws.cell(row=row_idx, column=col_idx, value=float(value))
+                else:
+                    ws.cell(row=row_idx, column=col_idx, value=int(value))
+            except ValueError:
+                ws.cell(row=row_idx, column=col_idx, value=value)
+    return wb
+
+
+def _load_uploaded_workbook(path: Path, raw: bytes):
+    suffix = path.suffix.lower()
+    if suffix == ".xlsx":
+        wb_f = load_workbook(BytesIO(raw), data_only=False)
+        wb_v = load_workbook(BytesIO(raw), data_only=True)
+        return wb_f, wb_v
+    if suffix == ".csv":
+        wb_f = _load_csv_workbook(raw)
+        wb_v = _load_csv_workbook(raw)
+        return wb_f, wb_v
+    raise ValueError(f"unsupported file type: {suffix}")
 
 
 def _registry_data() -> list[dict[str, Any]]:
@@ -63,6 +119,107 @@ def _save_registry() -> None:
     REGISTRY_PATH.write_text(json.dumps(_registry_data(), indent=2))
 
 
+def _supported_suffix(path: Path) -> bool:
+    return path.suffix.lower() in {".xlsx", ".csv"}
+
+
+def _local_discovery_roots() -> list[Path]:
+    override = get_config_value("EFT_LOCAL_DISCOVERY_ROOTS")
+    if override:
+        roots = [Path(part).expanduser() for part in override.split(os.pathsep) if part.strip()]
+    else:
+        home = Path.home()
+        roots = [
+            home / "Documents",
+            home / "Desktop",
+            home / "Downloads",
+        ]
+    deduped: list[Path] = []
+    seen: set[str] = set()
+    for root in roots:
+        resolved = root.expanduser()
+        key = str(resolved)
+        if key not in seen and resolved.exists():
+            seen.add(key)
+            deduped.append(resolved)
+    return deduped
+
+
+def _is_allowed_local_path(path: Path) -> bool:
+    try:
+        resolved = path.expanduser().resolve()
+    except Exception:
+        return False
+    if not resolved.exists() or not resolved.is_file() or not _supported_suffix(resolved):
+        return False
+    for root in _local_discovery_roots():
+        try:
+            resolved.relative_to(root.resolve())
+            return True
+        except ValueError:
+            continue
+    return False
+
+
+def _discover_local_files() -> list[dict[str, Any]]:
+    blocked_dirs = {".git", "node_modules", ".next", "__pycache__", "Library"}
+    discovered: list[dict[str, Any]] = []
+    for root in _local_discovery_roots():
+        if len(discovered) >= LOCAL_FILE_LIMIT:
+            break
+        for dirpath, dirnames, filenames in os.walk(root):
+            dirnames[:] = [name for name in dirnames if not name.startswith(".") and name not in blocked_dirs]
+            for filename in filenames:
+                if filename.startswith("."):
+                    continue
+                path = Path(dirpath) / filename
+                if not _supported_suffix(path):
+                    continue
+                try:
+                    stat = path.stat()
+                    discovered.append(
+                        {
+                            "path": str(path),
+                            "filename": path.name,
+                            "directory": str(path.parent),
+                            "size_bytes": stat.st_size,
+                            "modified_at": int(stat.st_mtime),
+                        }
+                    )
+                except OSError:
+                    continue
+                if len(discovered) >= LOCAL_FILE_LIMIT:
+                    break
+            if len(discovered) >= LOCAL_FILE_LIMIT:
+                break
+    discovered.sort(key=lambda item: item["modified_at"], reverse=True)
+    return discovered[:LOCAL_FILE_LIMIT]
+
+
+def _ingest_local_file(path: Path) -> dict[str, Any]:
+    raw = path.read_bytes()
+    wb_f, wb_v = _load_uploaded_workbook(path, raw)
+    fid = uuid.uuid4().hex[:12]
+    folder = UPLOADS_DIR / fid
+    folder.mkdir(parents=True, exist_ok=True)
+    dest = folder / path.name
+    dest.write_bytes(raw)
+    store[fid] = {
+        "path": str(dest),
+        "filename": path.name,
+        "wb_f": wb_f,
+        "wb_v": wb_v,
+        "sheets": wb_f.sheetnames,
+    }
+
+    def _background_index():
+        _build_ref_index(fid)
+
+    threading.Thread(target=_background_index, daemon=True).start()
+    _save_registry()
+    return {"file_id": fid, "filename": path.name, "sheets": wb_f.sheetnames}
+
+
 def _load_registry() -> None:
     if not REGISTRY_PATH.exists():
         return
@@ -77,14 +234,13 @@ def _load_registry() -> None:
         workbook_path = Path(item.get("path", ""))
         folder = UPLOADS_DIR / fid
         if not workbook_path.exists() and folder.exists():
-            matches = list(folder.glob("*.xlsx"))
+            matches = list(folder.glob("*.xlsx")) + list(folder.glob("*.csv"))
             workbook_path = matches[0] if matches else workbook_path
         if not workbook_path.exists():
             continue
         try:
             raw = workbook_path.read_bytes()
-            wb_f = load_workbook(BytesIO(raw), data_only=False)
-            wb_v = load_workbook(BytesIO(raw), data_only=True)
+            wb_f, wb_v = _load_uploaded_workbook(workbook_path, raw)
         except Exception:
             continue
         store[fid] = {
@@ -486,8 +642,8 @@ def ping() -> dict[str, str]:
 @app.post("/api/upload")
 async def upload(file: UploadFile = File(...)):
     async def event_stream():
-        if not file.filename or not file.filename.lower().endswith(".xlsx"):
-            yield _sse({"error": "Only .xlsx files are supported"})
+        if not file.filename or not file.filename.lower().endswith((".xlsx", ".csv")):
+            yield _sse({"error": "Only .xlsx and .csv files are supported"})
             return
         yield _sse({"progress": "Reading formulas..."})
         fid = uuid.uuid4().hex[:12]
@@ -497,9 +653,8 @@ async def upload(file: UploadFile = File(...)):
         raw = await file.read()
         path.write_bytes(raw)
         try:
-            wb_f = load_workbook(BytesIO(raw), data_only=False)
+            wb_f, wb_v = _load_uploaded_workbook(path, raw)
             yield _sse({"progress": f"Found {len(wb_f.sheetnames)} sheets — reading values..."})
-            wb_v = load_workbook(BytesIO(raw), data_only=True)
         except Exception as exc:
             if path.exists():
                 path.unlink()
@@ -521,6 +676,25 @@ async def upload(file: UploadFile = File(...)):
         yield _sse({"done": True, "file_id": fid, "filename": file.filename, "sheets": wb_f.sheetnames})
 
     return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+@app.get("/api/local-files")
+def local_files() -> list[dict[str, Any]]:
+    return _discover_local_files()
+
+
+@app.post("/api/local-files/import")
+async def import_local_file(payload: dict[str, Any]) -> dict[str, Any]:
+    raw_path = payload.get("path")
+    if not raw_path:
+        raise HTTPException(status_code=400, detail="path is required")
+    path = Path(str(raw_path)).expanduser()
+    if not _is_allowed_local_path(path):
+        raise HTTPException(status_code=403, detail="path is not within allowed local discovery roots")
+    try:
+        return _ingest_local_file(path)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Failed to import local file: {exc}") from exc
 
 
 @app.get("/api/files")

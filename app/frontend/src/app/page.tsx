@@ -4,14 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { AppHeader } from "@/components/header";
-import { deleteFileEntry, fetchRegistry, uploadFile } from "@/lib/api";
-import type { FileEntry } from "@/lib/types";
+import { deleteFileEntry, fetchLocalFiles, fetchRegistry, importLocalFile, uploadFile } from "@/lib/api";
+import type { FileEntry, LocalFileEntry } from "@/lib/types";
 
 const FEATURE_STEPS = [
   {
     number: "01",
     title: "Upload workbook",
-    body: "Bring in a live .xlsx model and preserve sheet structure, formulas, and values for analysis.",
+    body: "Bring in a live .xlsx or .csv model and preserve sheet structure, formulas, and values for analysis.",
   },
   {
     number: "02",
@@ -38,14 +38,14 @@ function HeroVisual() {
           </div>
           <div className="flex items-center gap-2">
             <span className="rounded-full bg-bg-tint px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-accent">Summary!B4</span>
-            <span className="rounded-full border border-border-subtle px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-text-secondary">Mapped</span>
+            <span className="hidden rounded-full border border-border-subtle px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-text-secondary sm:inline-flex">Mapped</span>
           </div>
         </div>
-        <div className="mt-4 grid gap-4 lg:grid-cols-[1.08fr_0.92fr]">
+        <div className="mt-4 grid gap-4 xl:grid-cols-[1.08fr_0.92fr]">
           <div className="rounded-[28px] border border-border-subtle bg-white/70 p-4">
             <div className="mb-3 flex items-center justify-between">
               <div className="text-[11px] uppercase tracking-[0.24em] text-text-tertiary">Workbook Grid</div>
-              <div className="rounded-full border border-border-subtle bg-white px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-text-secondary">Sheet Preview</div>
+              <div className="hidden rounded-full border border-border-subtle bg-white px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-text-secondary sm:inline-flex">Sheet Preview</div>
             </div>
             <div className="grid grid-cols-5 gap-2 text-[11px] font-medium uppercase tracking-[0.12em] text-text-tertiary">
               {["Metric", "Q1 Act", "Q2 Act", "Q3 Fcst", "FY Fct"].map((item) => <div key={item}>{item}</div>)}
@@ -79,20 +79,16 @@ function HeroVisual() {
             <div className="relative overflow-hidden rounded-[28px] border border-accent/15 bg-[linear-gradient(180deg,#f4faf8_0%,#eef6f4_100%)] p-4">
               <div className="mb-4 flex items-center justify-between">
                 <div className="text-[11px] uppercase tracking-[0.24em] text-accent">Formula Trace</div>
-                <div className="rounded-full border border-accent/15 bg-white/80 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-accent">Cross-sheet lineage</div>
+                <div className="hidden rounded-full border border-accent/15 bg-white/80 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-accent xl:inline-flex">Cross-sheet lineage</div>
               </div>
-              <svg className="pointer-events-none absolute inset-0 h-full w-full" viewBox="0 0 360 260" fill="none">
+              <svg className="pointer-events-none absolute inset-0 hidden h-full w-full xl:block" viewBox="0 0 360 260" fill="none">
                 <path d="M128 72 C128 102, 128 118, 160 138" stroke="#8EBBB6" strokeWidth="2" strokeDasharray="6 6" className="animate-dash-flow" />
                 <path d="M176 154 C176 178, 176 192, 212 214" stroke="#B6A6F6" strokeWidth="2" strokeDasharray="6 6" className="animate-dash-flow" />
               </svg>
-              <div className="relative space-y-3 text-sm">
+              <div className="relative grid gap-3 text-sm md:grid-cols-3 xl:block xl:space-y-3">
                 <div className="rounded-[22px] border border-accent/45 bg-white p-4 font-mono-ui shadow-sm">Summary!B4 = Profit</div>
-                <div className="pl-8">
-                  <div className="rounded-[22px] border border-teal/45 bg-white p-4 font-mono-ui shadow-sm">Revenue - Expenses</div>
-                </div>
-                <div className="pl-14">
-                  <div className="rounded-[22px] border border-violet/45 bg-white p-4 font-mono-ui shadow-sm">Regional totals and operating costs</div>
-                </div>
+                <div className="rounded-[22px] border border-teal/45 bg-white p-4 font-mono-ui shadow-sm xl:ml-8">Revenue - Expenses</div>
+                <div className="rounded-[22px] border border-violet/45 bg-white p-4 font-mono-ui shadow-sm xl:ml-14">Regional totals and operating costs</div>
               </div>
             </div>
             <div className="rounded-[28px] border border-border-subtle bg-white p-4 shadow-sm">
@@ -106,15 +102,10 @@ function HeroVisual() {
               <p className="mt-3 text-sm leading-6 text-text-secondary">
                 The platform explains how profit is constructed, identifies the base drivers behind each step, and turns spreadsheet logic into documentation that teams can review quickly.
               </p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <div className="rounded-[20px] border border-border-subtle bg-bg-deep p-4">
-                  <div className="text-[11px] uppercase tracking-[0.24em] text-text-tertiary">Analyst</div>
-                  <div className="mt-2 text-sm leading-6 text-text-secondary">Methodology, dependency depth, formula structure, and audit-ready lineage.</div>
-                </div>
-                <div className="rounded-[20px] border border-border-subtle bg-bg-deep p-4">
-                  <div className="text-[11px] uppercase tracking-[0.24em] text-text-tertiary">Business</div>
-                  <div className="mt-2 text-sm leading-6 text-text-secondary">Plain-English summaries for leaders who need meaning, not spreadsheet syntax.</div>
-                </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <span className="rounded-full border border-border-subtle bg-bg-deep px-3 py-2 text-xs uppercase tracking-[0.18em] text-text-secondary">Analyst-ready</span>
+                <span className="rounded-full border border-border-subtle bg-bg-deep px-3 py-2 text-xs uppercase tracking-[0.18em] text-text-secondary">Business summary</span>
+                <span className="rounded-full border border-border-subtle bg-bg-deep px-3 py-2 text-xs uppercase tracking-[0.18em] text-text-secondary">Traceable logic</span>
               </div>
             </div>
           </div>
@@ -128,12 +119,15 @@ export default function HomePage() {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [recentFiles, setRecentFiles] = useState<FileEntry[]>([]);
-  const [progress, setProgress] = useState("Drop an .xlsx workbook here or click upload to begin.");
+  const [localFiles, setLocalFiles] = useState<LocalFileEntry[]>([]);
+  const [progress, setProgress] = useState("Drop an .xlsx or .csv workbook here or click upload to begin.");
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [importingPath, setImportingPath] = useState<string | null>(null);
 
   useEffect(() => {
     void fetchRegistry().then(setRecentFiles).catch(() => undefined);
+    void fetchLocalFiles().then(setLocalFiles).catch(() => undefined);
   }, []);
 
   async function handleFile(file: File) {
@@ -142,6 +136,20 @@ export default function HomePage() {
       onProgress: (message) => setProgress(message),
       onDone: (payload) => router.push(`/workbook/${payload.file_id}`),
     }).catch((err) => setError(err instanceof Error ? err.message : "Upload failed"));
+  }
+
+  async function handleImportLocal(path: string) {
+    setError(null);
+    setImportingPath(path);
+    setProgress("Importing local spreadsheet...");
+    try {
+      const payload = await importLocalFile(path);
+      router.push(`/workbook/${payload.file_id}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Local import failed");
+    } finally {
+      setImportingPath(null);
+    }
   }
 
   return (
@@ -165,7 +173,7 @@ export default function HomePage() {
           <div className="flex h-full items-center justify-center rounded-[36px] border-2 border-dashed border-accent/45 bg-white/80">
             <div className="rounded-[28px] bg-white px-8 py-6 text-center shadow-xl">
               <div className="text-xs uppercase tracking-[0.24em] text-accent">Drop workbook to upload</div>
-              <div className="mt-3 text-lg font-medium">Release your `.xlsx` file to begin tracing</div>
+              <div className="mt-3 text-lg font-medium">Release your `.xlsx` or `.csv` file to begin tracing</div>
             </div>
           </div>
         </div>
@@ -211,7 +219,7 @@ export default function HomePage() {
             <input
               ref={inputRef}
               type="file"
-              accept=".xlsx"
+              accept=".xlsx,.csv,text/csv"
               className="hidden"
               onChange={(e) => {
                 const file = e.target.files?.[0];
@@ -220,6 +228,47 @@ export default function HomePage() {
             />
           </div>
           <HeroVisual />
+        </section>
+
+        <section className="mt-16">
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <div className="text-[11px] uppercase tracking-[0.24em] text-text-tertiary">On This Mac</div>
+              <h2 className="mt-2 text-2xl font-medium tracking-tight">Local spreadsheets</h2>
+            </div>
+            <button
+              className="rounded-full border border-border-subtle bg-white px-4 py-2 text-sm text-text-secondary transition hover:border-accent hover:text-accent"
+              onClick={() => void fetchLocalFiles().then(setLocalFiles).catch(() => undefined)}
+            >
+              Refresh
+            </button>
+          </div>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {localFiles.slice(0, 6).map((file) => (
+              <div key={file.path} className="rounded-[30px] border border-border-subtle bg-white/90 p-5 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="truncate font-medium tracking-tight">{file.filename}</div>
+                    <div className="mt-2 truncate text-sm text-text-secondary">{file.directory}</div>
+                  </div>
+                  <div className="rounded-full bg-bg-tint px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-accent">
+                    {file.filename.toLowerCase().endsWith(".csv") ? "CSV" : "XLSX"}
+                  </div>
+                </div>
+                <div className="mt-4 flex items-center justify-between text-xs text-text-tertiary">
+                  <span>{new Date(file.modified_at * 1000).toLocaleDateString()}</span>
+                  <span>{Math.max(1, Math.round(file.size_bytes / 1024))} KB</span>
+                </div>
+                <button
+                  className="mt-5 rounded-2xl bg-accent px-4 py-3 text-sm text-white transition hover:bg-accent-dim disabled:cursor-not-allowed disabled:opacity-60"
+                  disabled={importingPath === file.path}
+                  onClick={() => void handleImportLocal(file.path)}
+                >
+                  {importingPath === file.path ? "Importing..." : "Open Local File"}
+                </button>
+              </div>
+            ))}
+          </div>
         </section>
 
         <section className="mt-16">

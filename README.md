@@ -1,6 +1,6 @@
 # Excel Formula Tracer
 
-Excel Formula Tracer is a web application for understanding complex `.xlsx` workbooks without manually reverse-engineering them in Excel. It uploads a workbook, parses formulas and computed values, traces dependency chains across sheets, visualizes them as interactive graphs, and generates AI-assisted explanations for analysts and business stakeholders.
+Excel Formula Tracer is a web application for understanding complex `.xlsx` workbooks and `.csv` datasets without manually reverse-engineering them in Excel. It uploads a workbook, parses formulas and computed values, traces dependency chains across sheets, visualizes them as interactive graphs, and generates AI-assisted explanations for analysts and business stakeholders.
 
 ## Why This Exists
 
@@ -34,7 +34,7 @@ Still in progress:
 
 ### Workbook ingestion
 
-- Upload `.xlsx` files
+- Upload `.xlsx` and `.csv` files
 - Persist uploads and registry metadata on disk
 - Restore previously uploaded files on server restart
 - Load both formula and computed-value workbook variants

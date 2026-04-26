@@ -2,6 +2,7 @@ import { API } from "@/lib/constants";
 import type {
   FileEntry,
   IndexingProgress,
+  LocalFileEntry,
   OptimizeResult,
   SheetData,
   TableRegion,
@@ -40,6 +41,18 @@ async function parseSse(
 
 export function fetchRegistry() {
   return readJson<FileEntry[]>(`${API}/api/files`);
+}
+
+export function fetchLocalFiles() {
+  return readJson<LocalFileEntry[]>(`${API}/api/local-files`);
+}
+
+export function importLocalFile(path: string) {
+  return readJson<{ file_id: string; filename: string; sheets: string[] }>(`${API}/api/local-files/import`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path }),
+  });
 }
 
 export function fetchFile(fileId: string) {
@@ -199,4 +212,3 @@ export async function streamTopMetricExplanations(
   });
   return parseSse(res, onEvent);
 }
-
