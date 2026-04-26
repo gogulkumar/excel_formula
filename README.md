@@ -1,292 +1,341 @@
 # CalcSense
 
-CalcSense is an AI-assisted workbook intelligence platform designed to help teams understand, explain, and modernize complex Excel models faster. This repository contains the current CalcSense web application. It converts hidden spreadsheet logic into a transparent, navigable experience so analysts, finance leaders, and transformation teams can review business-critical formulas without manually reverse-engineering large workbooks.
+> **Turn any Excel workbook into an interactive intelligence platform — understand formulas, trace dependencies, and get AI-powered explanations in seconds.**
 
-## Executive Summary
+[![Python](https://img.shields.io/badge/Python-3.12+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![License](https://img.shields.io/badge/License-Proprietary-red)](#license)
 
-Spreadsheet models often become operational systems of record, yet their logic is difficult to audit, explain, and transfer. CalcSense addresses that gap by turning `.xlsx` workbooks into an interactive experience that exposes formula dependencies, highlights top-level metrics, detects table structures, and generates both technical and executive-ready explanations.
+---
 
-The result is a faster path to:
+## What is CalcSense?
 
-- Understand how key outputs are calculated
-- Reduce time spent tracing formulas across sheets
-- Improve auditability and knowledge transfer
-- Support modernization and optimization efforts for spreadsheet-driven processes
+Finance teams, analysts, and transformation leads spend countless hours reverse-engineering Excel models they inherited. CalcSense eliminates that friction.
 
-## Business Value
+Upload any `.xlsx` workbook and instantly get:
 
-CalcSense is built for scenarios where spreadsheet complexity creates delivery, control, or continuity risk.
+- **A full dependency map** — trace any cell upstream or downstream across sheets
+- **AI explanations** — technical breakdowns for analysts, plain-English summaries for executives
+- **Auto-detected tables and metrics** — understand your model's structure at a glance
+- **Live editing** — modify cells, apply formatting, and insert charts without leaving the browser
 
-### Typical use cases
+No more digging through 20 sheets to understand where a number came from.
 
-- **Executive review:** Summarize how major KPIs and outputs are derived
-- **Finance and FP&A analysis:** Inspect formula chains and validate model logic
-- **Audit and controls:** Trace dependencies and surface calculation paths
-- **Handover and onboarding:** Shorten the learning curve for inherited workbooks
-- **Transformation programs:** Document spreadsheet logic before redesign or automation
+---
 
-## Core Capabilities
+## Screenshots
 
-### Workbook intelligence
+> _Upload your workbook → browse sheets → click any cell → get an instant dependency graph and AI explanation._
 
-- Upload and retain `.xlsx` workbooks
-- Restore uploaded files after restart
-- Load formulas and computed values for analysis
-- Stream large sheet loads for better responsiveness
+| Landing | Workbook View | Formula Trace | AI Explanation |
+|---|---|---|---|
+| _(animated onboarding)_ | _(sheet grid + sidebar)_ | _(DAG graph)_ | _(markdown panel)_ |
 
-### Formula tracing
+---
 
-- Trace dependencies downstream from a selected cell
-- Trace upstream references to see where values are used
-- Identify cross-sheet links, ranges, and circular references
-- Surface top-level metrics not referenced by other formulas
+## Key Features
 
-### Table and metric analysis
+### Workbook Intelligence
+- Upload and persist `.xlsx` files (up to 200 MB)
+- Survives server restarts — workbooks reload from disk automatically
+- Stream large sheet data progressively for snappy load times
+- Download modified workbooks after editing
 
-- Detect table-like regions within sheets
-- Trace metrics inside a selected table region
-- Review workbook structure through a browser-based interface
+### Formula Tracing
+- **Downstream trace** — follow what a cell feeds into
+- **Upstream trace** — find every cell that contributes to a value
+- Cross-sheet dependency tracking
+- Circular reference detection
+- Top-level metric discovery (formulas referenced by nothing — your true outputs)
 
-### AI-assisted explanation
+### Table & Metric Analysis
+- Auto-detect table regions using connected-component analysis
+- Trace all metrics within a selected table range
+- Manual table boundary overrides
+- Top-50 tables surfaced per sheet
 
-- Generate technical explanations for analyst audiences
-- Generate business summaries for executive audiences
-- Produce formula blueprints and snapshots
-- Stream long-running AI tasks with reconnection support
-- Run in mock mode when live LLM access is unavailable
+### AI-Powered Explanations
+- **Technical explanation** — formula logic for data analysts and modelers
+- **Business summary** — executive-ready narrative of what a metric represents
+- **Formula blueprint** — reconstruction and optimization suggestions
+- **Optimization analysis** — AI verdict on formula efficiency
+- **Batch explain** — stream explanations for all metrics in a table at once
+- Persona inference: responses automatically adapt to analyst, data, or business context
+- Full mock mode for development without LLM credentials
 
-## Platform Overview
+### Conversational Chat
+- Multi-turn AI chat with workbook context
+- Ask questions about any cell, table, or sheet
+- Auto-detects your intent (formula mechanics vs. business trends vs. executive narrative)
+- Prompt injection and jailbreak protection built in
 
-CalcSense is delivered as a two-tier web application:
+### Cell Editing & Formatting
+- Edit values and formulas directly (up to 200 cells per request)
+- Apply colors, bold, italic, number formats
+- Insert charts: Bar, Pie, Line, Scatter, Area
+- Per-file locking for safe concurrent edits
 
-- **Backend:** FastAPI services for upload, parsing, tracing, table detection, metrics, and AI task orchestration
-- **Frontend:** Next.js application for workbook upload, browsing, tracing, and analysis workflows
+### Async Streaming
+- All long-running AI tasks stream via SSE — no page freezes
+- Client reconnection support for large workbooks
+- Task cancellation and auto-cleanup
+- Result caching prevents duplicate LLM calls
 
-### Technology stack
+---
 
-**Backend**
+## Architecture
 
-- Python 3.12+
-- FastAPI
-- Uvicorn
-- openpyxl
-- httpx
-
-**Frontend**
-
-- Next.js 16
-- React 19
-- TypeScript
-- Tailwind CSS v4
-- `@xyflow/react`
-- dagre
-- react-markdown
-
-**LLM integration**
-
-- OpenAI-compatible proxy support
-- Bedrock-compatible proxy support
-- Environment-driven configuration
-- Local mock mode for development and demos
-
-## Current Maturity
-
-The repository contains a working product foundation with end-to-end workbook lifecycle support, formula tracing, metric discovery, table analysis, and AI-assisted explanation flows.
-
-Current priorities include:
-
-- Additional production polish across the user experience
-- Broader automated test coverage
-- Full validation of live proxy-backed AI integrations
-- Completion of remaining roadmap items such as audio transcription
-- Remaining PRD parity work across the most detailed interaction and animation requirements
-
-## Repository Structure
-
-```text
-excel_formula/
-├── app/
-│   ├── backend/
-│   │   ├── main.py
-│   │   └── uploads/
-│   ├── frontend/
-│   │   ├── package.json
-│   │   └── src/
-│   ├── certificates/
-│   ├── prompts/
-│   ├── config_loader.py
-│   └── llm_client.py
-├── scripts/
-│   ├── start.sh
-│   └── smoke_test.py
-├── Makefile
-├── requirements.txt
-└── README.md
 ```
+┌─────────────────────────────────────────────────┐
+│                  Browser (Next.js)              │
+│  Landing → Sheet Browser → Analysis Workspace  │
+│  Formula Graph · Trace Tree · Chat · Editor     │
+└───────────────────┬─────────────────────────────┘
+                    │  REST + SSE
+┌───────────────────▼─────────────────────────────┐
+│              FastAPI Backend (Python)           │
+│  Upload · Parse · Trace · Table Detection       │
+│  LLM Orchestration · Task Streaming · Edit      │
+└───────────────────┬─────────────────────────────┘
+                    │
+        ┌───────────┴───────────┐
+        │                       │
+   ┌────▼────┐           ┌──────▼──────┐
+   │  openpyxl│           │  LLM Client │
+   │  (XLSX) │           │  OpenAI /   │
+   └─────────┘           │  Bedrock    │
+                         └─────────────┘
+```
+
+**Backend:** Python 3.12 · FastAPI · Uvicorn · openpyxl · httpx · boto3  
+**Frontend:** Next.js 16 · React 19 · TypeScript · Tailwind CSS v4 · @xyflow/react · dagre
+
+---
 
 ## Getting Started
 
-### 1. Install dependencies
+### Prerequisites
+
+- Python 3.12+
+- Node.js 18+
+- `make`
+
+### 1. Clone & Install
 
 ```bash
+git clone https://github.com/gogulkumar/excel_formula.git
+cd excel_formula
 make setup
 ```
 
-This creates the Python virtual environment, installs backend dependencies, and installs frontend packages.
+This creates a Python virtual environment, installs all backend dependencies, and installs frontend packages.
 
-### 2. Configure environment
+### 2. Configure Environment
 
 ```bash
 cp app/.env.example app/.env
 ```
 
-For local development without live LLM credentials, use:
+**Minimal config for local development (no LLM credentials needed):**
 
 ```env
 EFT_RUNTIME=local
 EFT_API_ENV=test
 EFT_LLM_MODE=mock
-NEXT_PUBLIC_API_URL=http://localhost:8010
+NEXT_PUBLIC_API_URL=http://localhost:8000
 APP_NAME=calcsense
 AWS_REGION=us-east-1
 ```
 
-Configuration is expected to come from `app/.env` and environment variables. Secret values should not be committed.
-
-For proxy-backed AI access, configure either:
+**For live AI features via OpenAI-compatible proxy:**
 
 ```env
-LLM_PROXY_HOST=your-proxy-host.example.com
-LLM_PROXY_SCHEME=https
+EFT_LLM_MODE=live
+EFT_OPENAI_PROXY_URL=https://your-proxy.example.com/v1/proxy/azure-openai
 EFT_PROXY_AUTH_TOKEN=Basic YOUR_TOKEN
 ```
 
-or explicit proxy URLs:
+**For AWS Bedrock:**
 
 ```env
-EFT_OPENAI_PROXY_URL=https://your-host.example.com/v1/proxy/azure-openai
-EFT_BEDROCK_PROXY_URL=https://your-host.example.com/v1/proxy/bedrock
+EFT_LLM_MODE=live
+EFT_BEDROCK_PROXY_URL=https://your-proxy.example.com/v1/proxy/bedrock
 EFT_PROXY_AUTH_TOKEN=Basic YOUR_TOKEN
+AWS_REGION=us-east-1
 ```
 
-## Running Locally
+> Never commit secrets. All sensitive values belong in `.env` which is gitignored.
 
-Default local ports:
+### 3. Run
 
-- Frontend: `http://localhost:3000`
-- Backend: `http://localhost:8000`
+```bash
+make start
+```
 
-If you need alternate ports:
+| Service | URL |
+|---|---|
+| Frontend | http://localhost:3000 |
+| Backend | http://localhost:8000 |
+| API Docs | http://localhost:8000/docs |
+
+**Custom ports:**
 
 ```bash
 make start BACKEND_PORT=8010 FRONTEND_PORT=3001 NEXT_PUBLIC_API_URL=http://localhost:8010
 ```
 
-To stop the local servers:
+**Stop servers:**
 
 ```bash
 make stop
 ```
 
+---
+
 ## Validation
 
-Run the smoke test:
-
 ```bash
+# Smoke test suite
 make test
-```
 
-Optional frontend production build:
-
-```bash
+# Frontend production build check
 cd app/frontend && npm run build
-```
 
-Optional backend import check:
-
-```bash
+# Backend import check
 .venv/bin/python -m py_compile app/config_loader.py app/llm_client.py app/backend/main.py
 ```
 
-## Current Status
+---
 
-Implemented and working in the current branch:
+## API Reference
 
-- Workbook upload, persistence, reload, and download
-- Sheet browsing with streamed loading
-- Dependency tracing, reverse tracing, table analysis, and top-level metric discovery
-- Technical explanations, business summaries, blueprints, snapshots, and optimization flows
-- Task-based AI streaming with reconnect support
-- Chat, cell editing, formatting, and chart insertion APIs
-- CalcSense-branded frontend with animated landing experience and workbook analysis workspace
+### File Lifecycle
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/upload` | Upload an XLSX workbook (SSE progress stream) |
+| `GET` | `/api/files` | List all workbooks |
+| `GET` | `/api/files/{fid}` | Get workbook metadata |
+| `DELETE` | `/api/files/{fid}` | Remove workbook |
+| `GET` | `/api/download/{fid}` | Download (modified) workbook |
 
-Still in progress before we can claim full PRD completion:
+### Workbook Data
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/sheet/{fid}/{sheet}` | Full sheet data |
+| `GET` | `/api/sheet-stream/{fid}/{sheet}` | Streamed sheet loading |
+| `POST` | `/api/reload/{fid}` | Reload from disk, clear caches |
+| `GET` | `/api/tables/{fid}/{sheet}` | Auto-detected table regions |
+| `PUT` | `/api/tables/{fid}/{sheet}` | Save custom table definitions |
 
-- Full end-to-end validation of every live LLM path against production credentials
-- Additional UX polish in some advanced panels and interaction details
-- Broader automated regression coverage
-- Audio transcription support described in the target PRD
+### Tracing & Metrics
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/trace` | Downstream dependency trace |
+| `POST` | `/api/trace-up` | Upstream reference trace |
+| `POST` | `/api/table-trace` | Trace metrics within a table |
+| `GET` | `/api/top-metrics/{fid}` | Discover top-level output metrics |
+| `POST` | `/api/top-metrics/{fid}/trace/{sheet}/{cell}` | Full trace for a metric |
 
-## Key API Endpoints
+### AI Flows
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/explain` | Technical formula explanation |
+| `POST` | `/api/business-summary` | Executive business summary |
+| `POST` | `/api/reconstruct` | Formula reconstruction |
+| `POST` | `/api/snapshot` | Concise formula snapshot |
+| `POST` | `/api/optimize` | Optimization analysis |
+| `POST` | `/api/table-explain-batch` | Batch explain all table metrics (SSE) |
+| `POST` | `/api/top-metrics/explain-all` | Batch explain all top metrics (SSE) |
+| `POST` | `/api/chat` | Conversational workbook analysis |
 
-### File lifecycle
+### Task Management
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/task/{task_id}` | Poll task status |
+| `GET` | `/api/task/{task_id}/stream` | Stream task output (SSE) |
+| `POST` | `/api/task/{task_id}/cancel` | Cancel a running task |
 
-- `POST /api/upload`
-- `GET /api/files`
-- `GET /api/files/{fid}`
-- `DELETE /api/files/{fid}`
+### Editing
+| Method | Endpoint | Description |
+|---|---|---|
+| `POST` | `/api/edit-cells` | Modify cell values/formulas |
+| `POST` | `/api/format-cells` | Apply cell formatting |
+| `POST` | `/api/insert-chart` | Insert a chart |
 
-### Workbook data
+---
 
-- `GET /api/sheet/{fid}/{sheet}`
-- `GET /api/sheet-stream/{fid}/{sheet}`
-- `POST /api/reload/{fid}`
-- `GET /api/tables/{fid}/{sheet}`
-- `PUT /api/tables/{fid}/{sheet}`
+## Repository Structure
 
-### Tracing and metrics
+```
+excel_formula/
+├── app/
+│   ├── backend/
+│   │   ├── main.py              # All FastAPI routes and core logic
+│   │   └── uploads/             # Persisted workbooks and metadata
+│   ├── frontend/
+│   │   └── src/
+│   │       ├── app/             # Next.js pages
+│   │       └── components/      # React components
+│   ├── prompts/                 # LLM system prompt templates
+│   ├── config_loader.py         # Environment configuration
+│   └── llm_client.py            # LLM abstraction (OpenAI / Bedrock)
+├── scripts/
+│   ├── start.sh                 # Server startup script
+│   └── smoke_test.py            # End-to-end smoke tests
+├── Makefile
+├── requirements.txt
+└── README.md
+```
 
-- `POST /api/trace`
-- `POST /api/trace-up`
-- `POST /api/table-trace`
-- `GET /api/top-metrics/{fid}`
-- `POST /api/top-metrics/{fid}/trace/{sheet}/{cell}`
-
-### AI flows
-
-- `POST /api/explain`
-- `POST /api/business-summary`
-- `POST /api/reconstruct`
-- `POST /api/snapshot`
-- `GET /api/task/{task_id}`
-- `GET /api/task/{task_id}/stream`
-- `POST /api/task/{task_id}/cancel`
-- `POST /api/table-explain-batch`
-- `POST /api/top-metrics/explain-all`
-- `POST /api/optimize`
+---
 
 ## Operational Notes
 
-- Uploaded workbooks are stored in `app/backend/uploads/`
-- Upload metadata is tracked in `app/backend/uploads/registry.json`
-- Mock LLM mode enables UI and API development without live credentials
+- Workbooks are stored at `app/backend/uploads/{file_id}/`
+- Registry metadata lives at `app/backend/uploads/registry.json`
+- Explanation cache persists at `{file_id}/explanations.json`
+- Table definitions persist at `{file_id}/tables_{sheet}.json`
+- LLM tasks auto-expire 10 minutes after completion
+
+### Limits
+
+| Parameter | Limit |
+|---|---|
+| Max upload size | 200 MB |
+| Sheet extent | 5,000 rows × 500 columns |
+| Cells per edit request | 200 |
+| Trace depth (default) | 5 levels |
+| Tables detected per sheet | 50 |
+| Task retention | 10 minutes |
+
+---
 
 ## Roadmap
 
-- Complete remaining production polish across major views
-- Expand automated testing across backend and frontend flows
-- Validate live LLM proxy integrations in production-like conditions
-- Implement audio transcription support
+- [ ] Full end-to-end validation of live LLM proxy integrations
+- [ ] Expanded automated regression coverage (backend + frontend)
+- [ ] Audio transcription support (Whisper integration)
+- [ ] Advanced UX polish across detailed interaction states
+- [ ] Role-based access control for multi-user deployments
+- [ ] Export explanations to PDF / Word
+
+---
 
 ## Contributing
 
-This project is under active development. When contributing locally:
+This project is under active development.
 
-- Keep ports configurable
-- Avoid destructive git operations
-- Prefer smoke testing after backend changes
-- Validate the frontend build before pushing
+- Keep ports configurable via environment variables
+- Run `make test` after backend changes
+- Run `npm run build` to validate the frontend before pushing
+- Do not commit `.env` or any credential files
+- Prefer small, focused PRs
+
+---
 
 ## License
 
-No license has been added yet.
+Proprietary — all rights reserved. No license has been granted for external use, modification, or distribution.
