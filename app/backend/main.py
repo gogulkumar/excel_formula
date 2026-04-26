@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import io
 import json
+import logging
 import os
 import re
 import shutil
@@ -9,6 +11,7 @@ import tempfile
 import threading
 import time
 import uuid
+import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Generator, Literal
@@ -16,6 +19,7 @@ from urllib.parse import unquote
 
 from fastapi import FastAPI, File, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from openpyxl import load_workbook
 from openpyxl.chart import AreaChart, BarChart, LineChart, PieChart, Reference, ScatterChart, Series
@@ -30,15 +34,29 @@ if str(APP_ROOT) not in sys.path:
 
 from config_loader import get_config_value
 from llm_client import LLMClient
+from backend.chains import (
+    infer_persona,
+    stream_business_summary,
+    stream_chat_response,
+    stream_formula_reconstruction,
+    stream_formula_snapshot,
+    stream_optimization,
+    stream_technical_explanation,
+)
 
 
 app = FastAPI(title="CalcSense")
+_cors_origins_raw = get_config_value("CALCSENSE_CORS_ORIGINS") or "http://localhost:3000,http://localhost:8080"
+_trusted_hosts_raw = get_config_value("CALCSENSE_TRUSTED_HOSTS") or "localhost,127.0.0.1"
+ALLOWED_ORIGINS = [item.strip() for item in _cors_origins_raw.split(",") if item.strip()]
+TRUSTED_HOSTS = [item.strip() for item in _trusted_hosts_raw.split(",") if item.strip()]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:8080"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type"],
 )
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=TRUSTED_HOSTS or ["*"])
 
 UPLOADS_DIR = Path(__file__).resolve().parent / "uploads"
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
@@ -47,6 +65,7 @@ PROMPTS_DIR = APP_ROOT / "prompts"
 MAX_UPLOAD_SIZE = 200_000_000
 DEFAULT_MODEL = get_config_value("SCRIPT_JUDGE_MODEL") or "gpt-4.1-2025-04-14"
 MAX_TRACE_DEPTH = 5
+MAX_FILENAME_LENGTH = 180
 FILE_ID_RE = re.compile(r"^[0-9a-f]{12}$")
 CELL_RE = re.compile(r"^([A-Z]{1,3})(\d{1,7})$")
 RANGE_TOKEN_RE = re.compile(
@@ -65,16 +84,38 @@ _referenced_cache: dict[str, set[str]] = {}
 task_store: dict[str, "LLMTask"] = {}
 task_by_cache_key: dict[str, str] = {}
 _file_locks: dict[str, threading.Lock] = {}
+_rate_limit_store: dict[tuple[str, str], list[float]] = {}
 
 _registry_ready = threading.Event()
 _task_lock = threading.Lock()
 _file_locks_lock = threading.Lock()
+_rate_limit_lock = threading.Lock()
+logger = logging.getLogger("calcsense")
+if not logger.handlers:
+    logging.basicConfig(
+        level=getattr(logging, (get_config_value("CALCSENSE_LOG_LEVEL") or "INFO").upper(), logging.INFO),
+        format="%(asctime)s %(levelname)s %(name)s %(message)s",
+    )
 _boot_status = {
     "stage": "booting",
     "detail": "Starting CalcSense",
     "files_total": 0,
     "files_loaded": 0,
     "ready": False,
+}
+RATE_LIMITED_PATHS = {
+    "/api/upload": (10, 60),
+    "/api/chat": (20, 60),
+    "/api/explain": (30, 60),
+    "/api/business-summary": (30, 60),
+    "/api/reconstruct": (30, 60),
+    "/api/snapshot": (30, 60),
+    "/api/optimize": (20, 60),
+    "/api/table-explain-batch": (10, 60),
+    "/api/top-metrics/explain-all": (10, 60),
+    "/api/edit-cells": (60, 60),
+    "/api/format-cells": (60, 60),
+    "/api/insert-chart": (30, 60),
 }
 
 
@@ -196,29 +237,60 @@ _HARM_PHRASES = (
     re.compile(r"\b(exfiltrate|steal|dump)\b.*\b(credentials|passwords|tokens)\b", re.I),
     re.compile(r"\bmalware\b|\bransomware\b|\bkeylogger\b", re.I),
 )
-_PERSONA_DATA_HINTS = (
-    "trend", "distribution", "outlier", "average", "median", "stddev", "correlation",
-    "yoy", "year over year", "growth rate", "anomaly", "spike", "dip", "histogram",
-    "p-value", "regression", "forecast", "seasonality", "data analy",
-)
-_PERSONA_BUSINESS_HINTS = (
-    "summary", "executive", "review", "stakeholder", "exec ", "leadership",
-    "narrative", "story", "talking points", "presentation", "qbr", "earnings",
-    "board", "memo", "headline", "tldr",
-)
-_PERSONA_EXCEL_HINTS = (
-    "formula", "sumifs", "vlookup", "xlookup", "index", "match", "named range",
-    "cell", "sheet", "workbook", "pivot", "rewrite", "optimi",
-)
 
 
 def _sse(payload: dict[str, Any]) -> str:
     return f"data: {json.dumps(payload)}\n\n"
 
 
+def _client_ip(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+    if forwarded:
+        return forwarded
+    return getattr(request.client, "host", "unknown")
+
+
+def _rate_limit_exceeded(request: Request) -> bool:
+    limit_config = RATE_LIMITED_PATHS.get(request.url.path)
+    if not limit_config:
+        return False
+    max_requests, window_seconds = limit_config
+    now = time.time()
+    key = (_client_ip(request), request.url.path)
+    with _rate_limit_lock:
+        recent = [stamp for stamp in _rate_limit_store.get(key, []) if now - stamp < window_seconds]
+        if len(recent) >= max_requests:
+            _rate_limit_store[key] = recent
+            return True
+        recent.append(now)
+        _rate_limit_store[key] = recent
+    return False
+
+
 def _sanitize_filename(filename: str) -> str:
     name = Path(filename or "workbook.xlsx").name
-    return re.sub(r"[^A-Za-z0-9._ -]+", "_", name)
+    cleaned = re.sub(r"[^A-Za-z0-9._ -]+", "_", name)
+    return cleaned[:MAX_FILENAME_LENGTH] or "workbook.xlsx"
+
+
+def _log_event(event: str, **fields: Any) -> None:
+    safe_fields = {key: value for key, value in fields.items() if value is not None}
+    logger.info("%s %s", event, json.dumps(safe_fields, ensure_ascii=True, sort_keys=True))
+
+
+def _looks_like_xlsx(file_bytes: bytes) -> bool:
+    if not file_bytes.startswith(b"PK"):
+        return False
+    try:
+        with zipfile.ZipFile(io.BytesIO(file_bytes)) as zf:
+            names = set(zf.namelist())
+            if "[Content_Types].xml" not in names:
+                return False
+            if "xl/workbook.xml" not in names:
+                return False
+    except Exception:
+        return False
+    return True
 
 
 def _atomic_write_json(path: Path, payload: Any) -> None:
@@ -856,36 +928,6 @@ def _count_nodes(node: dict[str, Any]) -> tuple[int, int, set[str]]:
     return total, formulas, sheets
 
 
-def _read_prompt(name: str) -> str:
-    return (PROMPTS_DIR / name).read_text()
-
-
-def _llm_client() -> LLMClient:
-    return LLMClient(
-        api_env=get_config_value("EFT_API_ENV") or "test",
-        app_name=get_config_value("APP_NAME") or "calcsense",
-        aws_region=get_config_value("AWS_REGION") or "us-east-1",
-    )
-
-
-def _stream_llm(prompt_name: str, user_text: str, model: str, temperature: float, max_tokens: int) -> Generator[str, None, dict[str, Any] | None]:
-    client = _llm_client()
-    final_usage: dict[str, Any] | None = None
-    stream = client.stream_openai(
-        model=model,
-        messages=[{"role": "user", "content": user_text}],
-        system_prompt=_read_prompt(prompt_name),
-        max_tokens=max_tokens,
-        temperature=temperature,
-    )
-    for chunk in stream:
-        if isinstance(chunk, dict):
-            final_usage = chunk
-        else:
-            yield chunk
-    return final_usage
-
-
 def _make_cache_key(sheet: str, cell: str, task_type: str) -> str:
     return f"{sheet}!{cell}:{task_type}"
 
@@ -954,59 +996,6 @@ def _cleanup_old_tasks() -> None:
                     task_by_cache_key.pop(task.cache_key, None)
 
 
-def _stream_technical_explanation(trace_text: str, model: str, max_tokens: int, label: str) -> Generator[str, None, None]:
-    user_text = (
-        f"Here is the full dependency tree for the metric '{label}':\n\n"
-        f"{trace_text}\n\nPlease explain this formula in plain English."
-    )
-    yield from _stream_llm("explain_formula.txt", user_text, model, 0.2, max_tokens)
-
-
-def _stream_business_summary(trace_text: str, model: str, max_tokens: int, label: str) -> Generator[str, None, None]:
-    user_text = (
-        f"Here is the full dependency tree for the metric '{label}':\n\n"
-        f"{trace_text}\n\nExplain this metric from a business perspective."
-    )
-    yield from _stream_llm("business_summary.txt", user_text, model, 0.2, max_tokens)
-
-
-def _stream_formula_reconstruction(trace_text: str, model: str, max_tokens: int, label: str) -> Generator[str, None, None]:
-    user_text = (
-        f"Here is the full dependency tree for the metric '{label}':\n\n"
-        f"{trace_text}\n\nShow me how to reconstruct this formula from scratch and how it could be rewritten more cleanly."
-    )
-    yield from _stream_llm("formula_reconstruction.txt", user_text, model, 0.2, max_tokens)
-
-
-def _stream_formula_snapshot(trace_text: str, model: str, max_tokens: int, label: str) -> Generator[str, None, None]:
-    user_text = (
-        f"Here is the full dependency tree for the metric '{label}':\n\n"
-        f"{trace_text}\n\nGenerate a concise formula snapshot."
-    )
-    yield from _stream_llm("formula_snapshot.txt", user_text, model, 0.1, max_tokens)
-
-
-def _infer_persona(message: str, mode: str) -> str:
-    if mode in {"excel", "data", "business"}:
-        return mode
-    lowered = message.lower()
-    if any(hint in lowered for hint in _PERSONA_BUSINESS_HINTS):
-        return "business"
-    if any(hint in lowered for hint in _PERSONA_DATA_HINTS):
-        return "data"
-    if any(hint in lowered for hint in _PERSONA_EXCEL_HINTS):
-        return "excel"
-    return "excel"
-
-
-def _persona_overlay(persona: str) -> str:
-    if persona == "data":
-        return "Data analyst lens. Look for trends, distributions, outliers, quantify everything. End with **Insight:**."
-    if persona == "business":
-        return "Executive QBR format. Lead with headline, then **Drivers** and **Watch-outs/Risks**. Translate formulas to business meaning."
-    return "Answer like a senior FP&A modeler. Lead with formula mechanics, cite exact cell refs in backticks, suggest cleaner rewrites."
-
-
 def _search_cells_by_query(entry: dict[str, Any], query: str) -> list[dict[str, Any]]:
     lowered = query.lower()
     out: list[dict[str, Any]] = []
@@ -1036,28 +1025,6 @@ def _is_blocked(message: str) -> bool:
     if re.search(r"\byou are now\b|\bact as\b|\bpretend to be\b", lowered):
         return True
     return any(pattern.search(message) for pattern in _HARM_PHRASES)
-
-
-def _stream_chat_response(user_message: str, context: str, history: list[dict], model: str, max_tokens: int, persona: str) -> Generator[str, None, None]:
-    system_prompt = _read_prompt("chat.txt") + "\n\n" + _persona_overlay(persona)
-    messages: list[dict[str, str]] = []
-    for item in history[-10:]:
-        role = item.get("role")
-        content = str(item.get("content", ""))
-        if role in {"user", "assistant"} and content:
-            messages.append({"role": role, "content": content})
-    messages.append({"role": "user", "content": f"Workbook context:\n{context}\n\nUser request:\n{user_message}"})
-    client = _llm_client()
-    stream = client.stream_openai(
-        model=model,
-        messages=messages,
-        system_prompt=system_prompt,
-        max_tokens=max_tokens,
-        temperature=0.3,
-    )
-    for chunk in stream:
-        if not isinstance(chunk, dict):
-            yield chunk
 
 
 def _load_registry() -> None:
@@ -1111,11 +1078,37 @@ def _load_registry() -> None:
 async def wait_for_registry(request: Request, call_next):
     path = request.url.path
     skip = path in ("/ping", "/api/upload", "/api/status")
+    request_id = request.headers.get("x-request-id") or uuid.uuid4().hex[:12]
+    started = time.time()
+    if _rate_limit_exceeded(request):
+        _log_event("rate_limited", request_id=request_id, path=path, method=request.method, client_ip=_client_ip(request))
+        return JSONResponse({"detail": "Rate limit exceeded"}, status_code=429, headers={"X-Request-ID": request_id})
     if not skip and path.startswith("/api") and not _registry_ready.is_set():
         _registry_ready.wait(timeout=180)
         if not _registry_ready.is_set():
-            return JSONResponse({"detail": "Server still loading workbook data"}, status_code=503)
-    return await call_next(request)
+            return JSONResponse({"detail": "Server still loading workbook data"}, status_code=503, headers={"X-Request-ID": request_id})
+    response = await call_next(request)
+    response.headers["X-Request-ID"] = request_id
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
+    response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+    response.headers["Cross-Origin-Resource-Policy"] = "same-site"
+    if path.startswith("/api") or path == "/ping":
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Content-Security-Policy"] = "frame-ancestors 'none'"
+    _log_event(
+        "request",
+        request_id=request_id,
+        method=request.method,
+        path=path,
+        status_code=response.status_code,
+        duration_ms=round((time.time() - started) * 1000, 1),
+        client_ip=_client_ip(request),
+    )
+    return response
+    return response
 
 
 @app.on_event("startup")
@@ -1145,6 +1138,9 @@ async def upload(file: UploadFile = File(...)):
         if len(raw) > MAX_UPLOAD_SIZE:
             yield _sse({"error": "File exceeds 200 MB limit"})
             return
+        if not _looks_like_xlsx(raw):
+            yield _sse({"error": "Uploaded file is not a valid .xlsx workbook"})
+            return
         yield _sse({"progress": "Reading formulas..."})
         fid = uuid.uuid4().hex[:12]
         folder = UPLOADS_DIR / fid
@@ -1166,6 +1162,7 @@ async def upload(file: UploadFile = File(...)):
             "wb_v": wb_v,
             "sheets": wb_f.sheetnames,
         }
+        _log_event("upload_created", file_id=fid, filename=filename, size_bytes=len(raw), sheet_count=len(wb_f.sheetnames))
         yield _sse({"progress": f"Building formula index across {len(wb_f.sheetnames)} sheets...", "indexing": {"current": 0, "total": len(wb_f.sheetnames), "sheet": ""}})
 
         def background_index():
@@ -1191,6 +1188,8 @@ def file_detail(fid: str) -> dict[str, Any]:
 
 @app.delete("/api/files/{fid}")
 def delete_file(fid: str) -> dict[str, bool]:
+    if fid in store:
+        _log_event("file_deleted", file_id=fid, filename=store[fid].get("filename"))
     store.pop(fid, None)
     ref_index_cache.pop(fid, None)
     _referenced_cache.pop(fid, None)
@@ -1236,6 +1235,7 @@ def reload_workbook(fid: str, sheet: str | None = None) -> dict[str, Any]:
     with lock:
         _reload_file_from_disk(fid)
         cleared = _clear_file_caches(fid, sheet)
+    _log_event("workbook_reloaded", file_id=fid, sheet=sheet, cleared=cleared)
     return {"ok": True, "cleared": cleared}
 
 
@@ -1367,22 +1367,22 @@ def _start_explain_task(req: ExplainReq, task_type: str, max_tokens: int, chain_
 
 @app.post("/api/explain")
 def explain(req: ExplainReq) -> dict[str, Any]:
-    return _start_explain_task(req, "analyst", 4096, _stream_technical_explanation)
+    return _start_explain_task(req, "analyst", 4096, stream_technical_explanation)
 
 
 @app.post("/api/business-summary")
 def business_summary(req: ExplainReq) -> dict[str, Any]:
-    return _start_explain_task(req, "business", 2000, _stream_business_summary)
+    return _start_explain_task(req, "business", 2000, stream_business_summary)
 
 
 @app.post("/api/reconstruct")
 def reconstruct(req: ExplainReq) -> dict[str, Any]:
-    return _start_explain_task(req, "blueprint", 4096, _stream_formula_reconstruction)
+    return _start_explain_task(req, "blueprint", 4096, stream_formula_reconstruction)
 
 
 @app.post("/api/snapshot")
 def snapshot(req: ExplainReq) -> dict[str, Any]:
-    return _start_explain_task(req, "snapshot", 800, _stream_formula_snapshot)
+    return _start_explain_task(req, "snapshot", 800, stream_formula_snapshot)
 
 
 @app.get("/api/explanations/{fid}/{sheet:path}/{cell}")
@@ -1402,8 +1402,8 @@ def table_explain_batch(req: BatchExplainReq):
             label = metric.get("label") or trace.get("meta") or "Metric"
             trace_text = _trace_to_text(trace)
             for kind, fn, max_tokens in (
-                ("analyst", _stream_technical_explanation, 4096),
-                ("business", _stream_business_summary, 2000),
+                ("analyst", stream_technical_explanation, 4096),
+                ("business", stream_business_summary, 2000),
             ):
                 yield _sse({"metric_index": idx, "type": kind, "status": "start"})
                 full_text = ""
@@ -1424,9 +1424,9 @@ def top_metrics_explain_all(req: SummaryExplainReq):
             label = trace.get("meta") or f"{trace.get('sheet', '')}!{trace.get('cell', '')}"
             trace_text = _trace_to_text(trace)
             for kind, fn, max_tokens in (
-                ("analyst", _stream_technical_explanation, 4096),
-                ("business", _stream_business_summary, 2000),
-                ("blueprint", _stream_formula_reconstruction, 4096),
+                ("analyst", stream_technical_explanation, 4096),
+                ("business", stream_business_summary, 2000),
+                ("blueprint", stream_formula_reconstruction, 4096),
             ):
                 yield _sse({"metric_index": idx, "type": kind, "status": "start"})
                 full_text = ""
@@ -1453,7 +1453,15 @@ def optimize(req: OptimizeReq):
     def event_stream():
         buffer = ""
         try:
-            for chunk in _stream_llm("optimize_formula.txt", user_text, req.model, 0.3, 4000):
+            for chunk in stream_optimization(
+                trace_text=trace_text,
+                label=req.label or trace.get("meta") or "Metric",
+                total_nodes=total_nodes,
+                formula_count=formula_count,
+                sheets_involved=sorted(sheets),
+                model=req.model,
+                max_tokens=4000,
+            ):
                 buffer += chunk
                 yield _sse({"text": chunk})
         except Exception as exc:
@@ -1489,7 +1497,7 @@ def chat(req: ChatReq):
             yield _sse({"done": True})
         return StreamingResponse(blocked_stream(), media_type="text/event-stream")
     entry = _file_or_404(req.file_id)
-    persona = _infer_persona(req.message, req.mode)
+    persona = infer_persona(req.message, req.mode)
     context_parts = []
     if req.sheet and req.sheet in entry["wb_f"].sheetnames:
         context_parts.append(f"Active sheet: {req.sheet}")
@@ -1508,7 +1516,7 @@ def chat(req: ChatReq):
         try:
             yield _sse({"status": "Gathering workbook context"})
             yield _sse({"status": f"Using {persona} lens"})
-            for chunk in _stream_chat_response(req.message, context, req.history, req.model, 4096, persona):
+            for chunk in stream_chat_response(req.message, context, req.history, req.model, 4096, persona):
                 yield _sse({"text": chunk})
             yield _sse({"done": True})
         except Exception as exc:
@@ -1561,6 +1569,7 @@ def edit_cells(req: EditCellsReq) -> dict[str, Any]:
         entry["wb_f"].save(entry["path"])
         _reload_file_from_disk(req.file_id)
         _clear_file_caches(req.file_id, req.sheet)
+    _log_event("cells_edited", file_id=req.file_id, sheet=req.sheet, edit_count=len(req.edits))
     return {"ok": True, "results": results}
 
 
@@ -1599,6 +1608,7 @@ def format_cells(req: FormatCellsReq) -> dict[str, Any]:
         entry["wb_f"].save(entry["path"])
         _reload_file_from_disk(req.file_id)
         _clear_file_caches(req.file_id, req.sheet)
+    _log_event("cells_formatted", file_id=req.file_id, sheet=req.sheet, cells_updated=len(expanded))
     return {"ok": True, "cells_updated": len(expanded)}
 
 

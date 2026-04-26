@@ -208,7 +208,41 @@ cd app/frontend && npm run build
 .venv/bin/python -m py_compile app/config_loader.py app/llm_client.py app/backend/main.py
 ```
 
----
+## MCP Server
+
+A downloadable MCP server is included in:
+
+```text
+mcp-server/
+```
+
+See:
+
+- [mcp-server/README.md](/Users/gogulkumar/Documents/Codex/2026-04-25-can-you-clone-htis-rpeo-in/excel_formula/mcp-server/README.md)
+
+It exposes core workbook tools by forwarding requests to the CalcSense backend.
+
+## Current Status
+
+CalcSense is a strong working foundation, but it is not yet fully production-ready for unrestricted public deployment.
+
+Implemented and working in the current branch:
+
+- Workbook upload, persistence, reload, and download
+- Sheet browsing with streamed loading
+- Dependency tracing, reverse tracing, table analysis, and top-level metric discovery
+- Technical explanations, business summaries, blueprints, snapshots, and optimization flows
+- Task-based AI streaming with reconnect support
+- Chat, cell editing, formatting, and chart insertion APIs
+- CalcSense-branded frontend with animated landing experience and workbook analysis workspace
+
+Still in progress before we can claim full production readiness:
+
+- Full end-to-end validation of every live LLM path against production credentials
+- Additional UX polish in some advanced panels and interaction details
+- Broader automated regression coverage
+- Audio transcription support described in the target PRD
+- Authentication, multi-user isolation, and durable shared storage for public launch
 
 ## API Reference
 
@@ -323,6 +357,11 @@ excel_formula/
 - [ ] Export explanations to PDF / Word
 
 ---
+
+## Deployment and Security Docs
+
+- [DEPLOY_VERCEL.md](/Users/gogulkumar/Documents/Codex/2026-04-25-can-you-clone-htis-rpeo-in/excel_formula/DEPLOY_VERCEL.md)
+- [SECURITY.md](/Users/gogulkumar/Documents/Codex/2026-04-25-can-you-clone-htis-rpeo-in/excel_formula/SECURITY.md)
 
 ## Contributing
 

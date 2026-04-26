@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 
@@ -45,15 +45,32 @@ export default function SheetPage() {
   const [businessSummary, setBusinessSummary] = useState("");
   const [reconstruction, setReconstruction] = useState("");
   const [snapshot, setSnapshot] = useState("");
-  const [showTracePanel, setShowTracePanel] = useState(false);
-  const [showTablePanel, setShowTablePanel] = useState(false);
-  const [showChatPanel, setShowChatPanel] = useState(false);
+  const [panelKind, setPanelKind] = useState<"trace" | "tables" | "chat" | null>(null);
+  const [renderedPanelKind, setRenderedPanelKind] = useState<"trace" | "tables" | "chat" | null>(null);
   const [selectedCell, setSelectedCell] = useState<Cell | null>(null);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     void fetchFile(fileId).then(setFile);
     void refreshSheet();
   }, [fileId, sheet]);
+
+  useEffect(() => {
+    if (closeTimer.current) {
+      clearTimeout(closeTimer.current);
+      closeTimer.current = null;
+    }
+    if (panelKind) {
+      setRenderedPanelKind(panelKind);
+      return;
+    }
+    closeTimer.current = setTimeout(() => {
+      setRenderedPanelKind(null);
+    }, 320);
+    return () => {
+      if (closeTimer.current) clearTimeout(closeTimer.current);
+    };
+  }, [panelKind]);
 
   async function refreshSheet() {
     await fetchSheetStream(fileId, sheet, setProgress).then(setSheetData);
@@ -121,9 +138,7 @@ export default function SheetPage() {
   async function handleTrace(cell: Cell) {
     setSelectedCell(cell);
     if (!cell.f) return;
-    setShowTablePanel(false);
-    setShowChatPanel(false);
-    setShowTracePanel(true);
+    setPanelKind("trace");
     const [down, up] = await Promise.all([traceDown(fileId, sheet, cell.r), traceUp(fileId, sheet, cell.r)]);
     const enrich = (node: TraceNode): TraceNode => ({
       ...node,
@@ -183,25 +198,27 @@ export default function SheetPage() {
     );
   }
 
-  const tableBorders = useMemo(() => {
-    const cells = new Set<string>();
+  const tableBorders = useState(() => new Set<string>())[0];
+  useEffect(() => {
+    tableBorders.clear();
     tables.forEach((table) => {
       const parsed = parseRange(table.range);
       if (!parsed) return;
       for (let r = parsed.r1; r <= parsed.r2; r += 1) {
         for (let c = parsed.c1; c <= parsed.c2; c += 1) {
-          cells.add(`${colToLetter(c)}${r}`);
+          tableBorders.add(`${colToLetter(c)}${r}`);
         }
       }
     });
-    return cells;
-  }, [tables]);
+  }, [tableBorders, tables]);
+
+  const panelVisible = panelKind !== null;
 
   return (
     <main className="min-h-screen bg-bg-deep">
       <AppHeader step={3} filename={file?.filename} fileId={fileId} downloadHref={downloadWorkbookUrl(fileId)} backHref={`/workbook/${fileId}`} />
       <div className="mx-auto flex max-w-[1600px] gap-6 px-6 py-8">
-        <section className={`${showTracePanel || showTablePanel || showChatPanel ? "w-[45%]" : "w-full"} min-w-0 transition-all`}>
+        <section className={`${panelVisible ? "w-[45%]" : "w-full"} min-w-0 transition-all duration-300`}>
           <div className="rounded-[32px] border border-border-subtle bg-white">
             <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border-subtle p-5">
               <div>
@@ -209,18 +226,10 @@ export default function SheetPage() {
                 <p className="mt-1 text-sm text-text-secondary">{progress}</p>
               </div>
               <div className="flex items-center gap-3">
-                <button className="rounded-2xl bg-accent px-4 py-3 text-white" onClick={() => {
-                  setShowTracePanel(false);
-                  setShowChatPanel(false);
-                  setShowTablePanel(true);
-                }}>
+                <button className="rounded-2xl bg-accent px-4 py-3 text-white" onClick={() => setPanelKind("tables")}>
                   Analysis
                 </button>
-                <button className="rounded-2xl bg-violet px-4 py-3 text-white" onClick={() => {
-                  setShowTracePanel(false);
-                  setShowTablePanel(false);
-                  setShowChatPanel(true);
-                }}>
+                <button className="rounded-2xl bg-violet px-4 py-3 text-white" onClick={() => setPanelKind("chat")}>
                   Chat
                 </button>
                 <Link href={`/workbook/${fileId}`} className="rounded-2xl border border-border-subtle px-4 py-3 text-sm">All sheets</Link>
@@ -290,14 +299,17 @@ export default function SheetPage() {
             </div>
           </div>
         </section>
-        {showTracePanel ? (
-          <section className="w-[55%] min-w-0">
+        <aside
+          className={`${renderedPanelKind ? "w-[55%] opacity-100" : "pointer-events-none w-[55%] opacity-0"} min-w-0 transition-[margin-right,opacity] duration-[320ms] ease-out will-change-[margin-right,opacity]`}
+          style={{ marginRight: panelKind ? 0 : "-55%" }}
+        >
+          {renderedPanelKind === "trace" ? (
             <TracePanel
               trace={trace}
               traceUp={upTrace}
               view={view}
               onViewChange={setView}
-              onClose={() => setShowTracePanel(false)}
+              onClose={() => setPanelKind(null)}
               explanation={explanation}
               explaining={!explanation}
               onExplain={() => trace && streamExplanation(trace, (text) => setExplanation((current) => `${current}${text}`), undefined, { file_id: fileId, sheet: trace.sheet, cell: trace.cell }, true)}
@@ -311,25 +323,21 @@ export default function SheetPage() {
               snapshotting={false}
               onSnapshot={handleSnapshot}
             />
-          </section>
-        ) : null}
-        {showTablePanel ? (
-          <section className="w-[55%] min-w-0">
-            <TableAnalysisPanel fileId={fileId} sheet={sheet} tables={tables} onClose={() => setShowTablePanel(false)} />
-          </section>
-        ) : null}
-        {showChatPanel ? (
-          <section className="w-[55%] min-w-0">
+          ) : null}
+          {renderedPanelKind === "tables" ? (
+            <TableAnalysisPanel fileId={fileId} sheet={sheet} tables={tables} onClose={() => setPanelKind(null)} />
+          ) : null}
+          {renderedPanelKind === "chat" ? (
             <ChatPanel
               fileId={fileId}
               sheet={sheet}
               selectedCell={selectedCell?.r}
               tables={tables}
-              onClose={() => setShowChatPanel(false)}
+              onClose={() => setPanelKind(null)}
               onRefresh={refreshSheet}
             />
-          </section>
-        ) : null}
+          ) : null}
+        </aside>
       </div>
     </main>
   );
