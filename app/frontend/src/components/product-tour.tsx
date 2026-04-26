@@ -17,8 +17,8 @@ export function ProductTour() {
     const seen = window.localStorage.getItem(TOUR_KEY);
     if (seen) return;
 
-    const legacyKeys = Array.from({ length: window.localStorage.length }, (_, storageIndex) => window.localStorage.key(storageIndex)).filter(
-      (key): key is string => Boolean(key && key !== TOUR_KEY && key.endsWith("-tour-seen")),
+    const legacyKeys = Object.keys(window.localStorage).filter(
+      (key) => key !== TOUR_KEY && key.endsWith("-tour-seen"),
     );
     for (const legacyKey of legacyKeys) {
       const legacySeen = window.localStorage.getItem(legacyKey);
