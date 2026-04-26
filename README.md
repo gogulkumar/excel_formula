@@ -1,6 +1,6 @@
 # CalcSense
 
-CalcSense is an AI-assisted workbook intelligence platform designed to help teams understand, explain, and modernize complex Excel models faster. This repository contains the Excel Formula Tracer application delivered through the CalcSense product experience. It converts hidden spreadsheet logic into a transparent, navigable application so analysts, finance leaders, and transformation teams can review business-critical formulas without manually reverse-engineering large workbooks.
+CalcSense is an AI-assisted workbook intelligence platform designed to help teams understand, explain, and modernize complex Excel models faster. This repository contains the current CalcSense web application. It converts hidden spreadsheet logic into a transparent, navigable experience so analysts, finance leaders, and transformation teams can review business-critical formulas without manually reverse-engineering large workbooks.
 
 ## Executive Summary
 
@@ -99,6 +99,7 @@ Current priorities include:
 - Broader automated test coverage
 - Full validation of live proxy-backed AI integrations
 - Completion of remaining roadmap items such as audio transcription
+- Remaining PRD parity work across the most detailed interaction and animation requirements
 
 ## Repository Structure
 
@@ -149,6 +150,8 @@ NEXT_PUBLIC_API_URL=http://localhost:8010
 APP_NAME=calcsense
 AWS_REGION=us-east-1
 ```
+
+Configuration is expected to come from `app/.env` and environment variables. Secret values should not be committed.
 
 For proxy-backed AI access, configure either:
 
@@ -204,6 +207,25 @@ Optional backend import check:
 ```bash
 .venv/bin/python -m py_compile app/config_loader.py app/llm_client.py app/backend/main.py
 ```
+
+## Current Status
+
+Implemented and working in the current branch:
+
+- Workbook upload, persistence, reload, and download
+- Sheet browsing with streamed loading
+- Dependency tracing, reverse tracing, table analysis, and top-level metric discovery
+- Technical explanations, business summaries, blueprints, snapshots, and optimization flows
+- Task-based AI streaming with reconnect support
+- Chat, cell editing, formatting, and chart insertion APIs
+- CalcSense-branded frontend with animated landing experience and workbook analysis workspace
+
+Still in progress before we can claim full PRD completion:
+
+- Full end-to-end validation of every live LLM path against production credentials
+- Additional UX polish in some advanced panels and interaction details
+- Broader automated regression coverage
+- Audio transcription support described in the target PRD
 
 ## Key API Endpoints
 
