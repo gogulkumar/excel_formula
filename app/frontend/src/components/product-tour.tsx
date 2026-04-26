@@ -7,14 +7,20 @@ const TOUR_STEPS = [
   "Click any formula cell to open the trace panel and view dependencies.",
   "Use Chat and Analysis to generate charts, edits, and KPI explanations.",
 ];
+const LEGACY_TOUR_KEY = "formulalens-tour-seen";
+const TOUR_KEY = "calcsense-tour-seen";
 
 export function ProductTour() {
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
 
   useEffect(() => {
-    const seen = window.localStorage.getItem("calcsense-tour-seen");
-    if (!seen) setOpen(true);
+    const seen = window.localStorage.getItem(TOUR_KEY) ?? window.localStorage.getItem(LEGACY_TOUR_KEY);
+    if (seen) {
+      window.localStorage.setItem(TOUR_KEY, seen);
+      return;
+    }
+    setOpen(true);
   }, []);
 
   if (!open) return null;
@@ -35,7 +41,7 @@ export function ProductTour() {
             <button
               className="rounded-full border border-border-subtle px-4 py-2 text-sm text-text-secondary"
               onClick={() => {
-                window.localStorage.setItem("calcsense-tour-seen", "1");
+                window.localStorage.setItem(TOUR_KEY, "1");
                 setOpen(false);
               }}
             >
@@ -45,7 +51,7 @@ export function ProductTour() {
               className="rounded-full bg-accent px-4 py-2 text-sm text-white"
               onClick={() => {
                 if (step === TOUR_STEPS.length - 1) {
-                  window.localStorage.setItem("calcsense-tour-seen", "1");
+                  window.localStorage.setItem(TOUR_KEY, "1");
                   setOpen(false);
                   return;
                 }
