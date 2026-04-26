@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useMemo, useState } from "react";
+import ReactMarkdown from "react-markdown";
 
 import {
   editCells,
@@ -171,14 +172,28 @@ function CitationBadge({
 }
 
 function renderMessageText(text: string, currentSheet: string) {
-  const parts = text.split(/(`[^`]+`)/g).filter(Boolean);
-  return parts.map((part, index) => {
-    if (!(part.startsWith("`") && part.endsWith("`"))) {
-      return <Fragment key={index}>{part}</Fragment>;
-    }
-    const token = part.slice(1, -1);
-    return <CitationBadge key={index} token={token} currentSheet={currentSheet} />;
-  });
+  return (
+    <div className="prose prose-sm max-w-none prose-p:leading-6 prose-pre:bg-bg-elevated prose-pre:p-4 prose-pre:rounded-2xl">
+      <ReactMarkdown
+        components={{
+          code(props) {
+            const { children, className, node, ref, ...rest } = props;
+            const token = String(children).trim();
+            if (!className && CELL_REF_RE.test(token)) {
+              return <CitationBadge token={token} currentSheet={currentSheet} />;
+            }
+            return (
+              <code className={className || "rounded-md bg-bg-elevated px-1.5 py-0.5 font-mono-ui text-xs"} {...rest}>
+                {children}
+              </code>
+            );
+          },
+        }}
+      >
+        {text}
+      </ReactMarkdown>
+    </div>
+  );
 }
 
 function ContextChip({
