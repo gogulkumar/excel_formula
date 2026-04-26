@@ -8,10 +8,10 @@ Spreadsheet models often become operational systems of record, yet their logic i
 
 The result is a faster path to:
 
-- understand how key outputs are calculated
-- reduce time spent tracing formulas across sheets
-- improve auditability and knowledge transfer
-- support modernization and optimization efforts for spreadsheet-driven processes
+- Understand how key outputs are calculated
+- Reduce time spent tracing formulas across sheets
+- Improve auditability and knowledge transfer
+- Support modernization and optimization efforts for spreadsheet-driven processes
 
 ## Business Value
 
@@ -19,11 +19,11 @@ FormulaLens is built for scenarios where spreadsheet complexity creates delivery
 
 ### Typical use cases
 
-- **Executive review:** summarize how major KPIs and outputs are derived
-- **Finance and FP&A analysis:** inspect formula chains and validate model logic
-- **Audit and controls:** trace dependencies and surface calculation paths
-- **Handover and onboarding:** shorten the learning curve for inherited workbooks
-- **Transformation programs:** document spreadsheet logic before redesign or automation
+- **Executive review:** Summarize how major KPIs and outputs are derived
+- **Finance and FP&A analysis:** Inspect formula chains and validate model logic
+- **Audit and controls:** Trace dependencies and surface calculation paths
+- **Handover and onboarding:** Shorten the learning curve for inherited workbooks
+- **Transformation programs:** Document spreadsheet logic before redesign or automation
 
 ## Core Capabilities
 
@@ -95,10 +95,10 @@ The repository contains a working product foundation with end-to-end workbook li
 
 Current priorities include:
 
-- additional production polish across the user experience
-- broader automated test coverage
-- full validation of live proxy-backed AI integrations
-- completion of remaining roadmap items such as audio transcription
+- Additional production polish across the user experience
+- Broader automated test coverage
+- Full validation of live proxy-backed AI integrations
+- Completion of remaining roadmap items such as audio transcription
 
 ## Repository Structure
 
@@ -251,19 +251,19 @@ Optional backend import check:
 
 ## Roadmap
 
-- complete remaining production polish across major views
-- expand automated testing across backend and frontend flows
-- validate live LLM proxy integrations in production-like conditions
-- implement audio transcription support
+- Complete remaining production polish across major views
+- Expand automated testing across backend and frontend flows
+- Validate live LLM proxy integrations in production-like conditions
+- Implement audio transcription support
 
 ## Contributing
 
 This project is under active development. When contributing locally:
 
-- keep ports configurable
-- avoid destructive git operations
-- prefer smoke testing after backend changes
-- validate the frontend build before pushing
+- Keep ports configurable
+- Avoid destructive git operations
+- Prefer smoke testing after backend changes
+- Validate the frontend build before pushing
 
 ## License
 
