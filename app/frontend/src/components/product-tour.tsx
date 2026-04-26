@@ -17,13 +17,14 @@ export function ProductTour() {
     const seen = window.localStorage.getItem(TOUR_KEY);
     if (seen) return;
 
-    for (let index = 0; index < window.localStorage.length; index += 1) {
-      const key = window.localStorage.key(index);
-      if (!key || key === TOUR_KEY || !key.endsWith("-tour-seen")) continue;
-      const legacySeen = window.localStorage.getItem(key);
+    const legacyKeys = Array.from({ length: window.localStorage.length }, (_, storageIndex) => window.localStorage.key(storageIndex)).filter(
+      (key): key is string => Boolean(key && key !== TOUR_KEY && key.endsWith("-tour-seen")),
+    );
+    for (const legacyKey of legacyKeys) {
+      const legacySeen = window.localStorage.getItem(legacyKey);
       if (!legacySeen) continue;
       window.localStorage.setItem(TOUR_KEY, legacySeen);
-      window.localStorage.removeItem(key);
+      window.localStorage.removeItem(legacyKey);
       return;
     }
 
