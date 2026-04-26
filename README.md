@@ -1,6 +1,6 @@
 # FormulaLens
 
-FormulaLens is an AI-assisted workbook intelligence platform designed to help teams understand, explain, and modernize complex Excel models faster. It converts hidden spreadsheet logic into a transparent, navigable application so analysts, finance leaders, and transformation teams can review business-critical formulas without manually reverse-engineering large workbooks.
+FormulaLens is an AI-assisted workbook intelligence platform designed to help teams understand, explain, and modernize complex Excel models faster. This repository contains the Excel Formula Tracer application delivered through the FormulaLens product experience. It converts hidden spreadsheet logic into a transparent, navigable application so analysts, finance leaders, and transformation teams can review business-critical formulas without manually reverse-engineering large workbooks.
 
 ## Executive Summary
 
@@ -78,7 +78,7 @@ FormulaLens is delivered as a two-tier web application:
 - React 19
 - TypeScript
 - Tailwind CSS v4
-- React Flow
+- `@xyflow/react`
 - dagre
 - react-markdown
 
