@@ -76,19 +76,19 @@ def test_llm_client_init() -> None:
 # ─── Test 3: Mock Mode ─ call_openai ─────────────────────────────────────────
 
 def test_mock_call_openai() -> None:
-    print("\n━━━ 3. Mock Mode — call_openai ━━━")
+    print("\n━━━ 3. call_openai ━━━")
     try:
         from llm_client import LLMClient
         client = LLMClient()
-        assert client.is_mock_mode, "Expected mock mode"
+        mode_label = "mock" if client.is_mock_mode else "live"
         messages = [{"role": "user", "content": "Explain =SUM(A1:A5)"}]
         result = client.call_openai(model="gpt-4", messages=messages)
         assert isinstance(result, dict), "Expected dict result"
         assert "response_text" in result, "Missing response_text"
         assert len(result["response_text"]) > 0, "Empty response_text"
-        _record("call_openai (mock)", True, f"response length={len(result['response_text'])}")
+        _record(f"call_openai ({mode_label})", True, f"response length={len(result['response_text'])}")
     except Exception as exc:
-        _record("call_openai (mock)", False, str(exc))
+        _record("call_openai", False, str(exc))
 
 
 # ─── Test 4: Mock Mode ─ stream_openai ───────────────────────────────────────

@@ -97,42 +97,86 @@ function StageScan() {
         </div>
         <div className="rounded-full bg-bg-tint px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-accent">Stage 2</div>
       </div>
-      <div className="relative mt-8 overflow-hidden rounded-[30px] border border-border-subtle bg-[linear-gradient(180deg,#fbfaf7_0%,#f4f0ea_100%)] p-5">
-        <div className="scan-sweep absolute inset-y-0 left-0 w-24 bg-[linear-gradient(90deg,transparent,rgba(15,118,110,0.18),transparent)]" />
-        <div className="grid grid-cols-5 gap-2 text-[11px] font-medium uppercase tracking-[0.12em] text-text-tertiary">
-          {["Metric", "Q1", "Q2", "Q3", "FY"].map((item) => <div key={item}>{item}</div>)}
+      <div className="relative mt-8 flex flex-col overflow-hidden rounded-xl border border-[#d4d4d4] bg-white shadow-sm font-sans">
+        <div className="scan-sweep absolute inset-y-0 left-0 z-20 w-24 bg-[linear-gradient(90deg,transparent,rgba(15,118,110,0.18),transparent)] pointer-events-none" />
+        
+        {/* Fake Formula Bar */}
+        <div className="flex items-center gap-2 border-b border-[#d4d4d4] bg-[#f9f9f9] px-2 py-1.5 text-xs text-text-secondary">
+          <div className="flex items-center justify-center rounded bg-white px-2 py-0.5 border border-[#d4d4d4] font-medium w-12 shadow-sm">
+            E4
+          </div>
+          <div className="text-[#a0a0a0]">|</div>
+          <div className="flex items-center text-accent/70 italic mr-1">fx</div>
+          <div className="flex-1 rounded bg-white px-2 py-0.5 border border-[#d4d4d4] font-mono-ui text-sm shadow-sm">
+            =SUM(B4:D4)
+          </div>
         </div>
-        {[
-          ["Revenue", "120", "130", "140", "=SUM(B2:D2)"],
-          ["COGS", "40", "43", "45", "=SUM(B3:D3)"],
-          ["Gross Profit", "=B2-B3", "=C2-C3", "=D2-D3", "=SUM(B4:D4)"],
-          ["OpEx", "18", "19", "20", "=SUM(B5:D5)"],
-          ["EBITDA", "=B4-B5", "=C4-C5", "=D4-D5", "=SUM(B6:D6)"],
-        ].map((row, rowIndex) => (
-          <div key={row[0]} className="mt-2 grid grid-cols-5 gap-2">
-            {row.map((value, colIndex) => (
-              <div
-                key={`${row[0]}-${colIndex}`}
-                className={`rounded-2xl border px-3 py-2.5 text-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] ${
-                  colIndex === 4 || rowIndex >= 2 ? "border-accent/20 bg-accent/6 font-mono-ui" : "border-border-subtle bg-white/90"
-                }`}
-              >
-                {value}
+
+        {/* Excel Grid container */}
+        <div className="flex bg-[#f3f2f1] text-[11px] text-[#605e5c]">
+          {/* Top-left corner */}
+          <div className="w-8 border-b border-r border-[#d4d4d4] shrink-0" />
+          
+          {/* Column Headers */}
+          <div className="flex flex-1">
+            {["A", "B", "C", "D", "E"].map((col) => (
+              <div key={col} className={`flex-1 border-b border-r border-[#d4d4d4] py-1 text-center font-medium ${col === "E" ? "bg-[#e1dfdd]" : ""}`}>
+                {col}
               </div>
             ))}
           </div>
-        ))}
-        <div className="mt-6 grid gap-3 md:grid-cols-3">
+        </div>
+
+        {/* Rows */}
+        <div className="flex flex-col bg-white">
           {[
-            ["Sheets", "8 loaded"],
-            ["Formulas", "214 indexed"],
-            ["Tables", "6 regions found"],
-          ].map(([label, value]) => (
-            <div key={label} className="rounded-2xl border border-border-subtle bg-white/90 px-4 py-3 shadow-sm">
-              <div className="text-[11px] uppercase tracking-[0.18em] text-text-tertiary">{label}</div>
-              <div className="mt-1 font-mono-ui text-sm">{value}</div>
+            ["Metric", "Q1", "Q2", "Q3", "FY"],
+            ["Revenue", "120", "130", "140", "=SUM(B2:D2)"],
+            ["COGS", "40", "43", "45", "=SUM(B3:D3)"],
+            ["Gross Profit", "=B2-B3", "=C2-C3", "=D2-D3", "=SUM(B4:D4)"],
+            ["OpEx", "18", "19", "20", "=SUM(B5:D5)"],
+            ["EBITDA", "=B4-B5", "=C4-C5", "=D4-D5", "=SUM(B6:D6)"],
+          ].map((row, rowIndex) => (
+            <div key={rowIndex} className="flex">
+              {/* Row Number */}
+              <div className={`w-8 shrink-0 border-b border-r border-[#d4d4d4] bg-[#f3f2f1] py-1.5 text-center text-[11px] text-[#605e5c] font-medium ${rowIndex === 3 ? "bg-[#e1dfdd]" : ""}`}>
+                {rowIndex + 1}
+              </div>
+              
+              {/* Cells */}
+              <div className="flex flex-1">
+                {row.map((value, colIndex) => {
+                  const isHeader = rowIndex === 0;
+                  const isFormula = colIndex === 4 || rowIndex >= 3;
+                  const isSelected = rowIndex === 3 && colIndex === 4;
+                  
+                  return (
+                    <div
+                      key={`${rowIndex}-${colIndex}`}
+                      className={`relative flex-1 border-b border-r border-[#e1dfdd] px-2 py-1.5 text-xs truncate ${
+                        isHeader ? "font-semibold bg-white" : 
+                        isFormula ? "font-mono-ui text-[#0a5e56]" : "bg-white"
+                      } ${isSelected ? "ring-2 ring-inset ring-[#107c41] bg-[#f2fcf6] z-10" : ""}`}
+                    >
+                      {value}
+                      {/* Active cell outline handle */}
+                      {isSelected && <div className="absolute -bottom-1 -right-1 w-2 h-2 bg-[#107c41] border border-white" />}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           ))}
+        </div>
+
+        {/* Summary stats */}
+        <div className="bg-[#fbfaf7] border-t border-[#d4d4d4] p-3 text-[11px] text-[#605e5c] flex justify-between items-center font-medium">
+          <div className="flex gap-4">
+            <span>8 Sheets loaded</span>
+            <span>214 Formulas indexed</span>
+            <span>6 Tables found</span>
+          </div>
+          <div className="text-accent/70 uppercase tracking-widest text-[9px]">Ready</div>
         </div>
       </div>
     </div>
@@ -294,6 +338,38 @@ function HeroDemo() {
   );
 }
 
+interface DiscoveredFile {
+  name: string;
+  path: string;
+  size: number;
+  lastModified: number;
+  handle: any;
+}
+
+async function scanDirectoryForExcel(dirHandle: any, basePath = ""): Promise<DiscoveredFile[]> {
+  const results: DiscoveredFile[] = [];
+  for await (const entry of dirHandle.values()) {
+    const entryPath = basePath ? `${basePath}/${entry.name}` : entry.name;
+    if (entry.kind === "file" && entry.name.toLowerCase().endsWith(".xlsx") && !entry.name.startsWith("~$")) {
+      try {
+        const file = await entry.getFile();
+        results.push({ name: entry.name, path: entryPath, size: file.size, lastModified: file.lastModified, handle: entry });
+      } catch { /* skip inaccessible files */ }
+    } else if (entry.kind === "directory" && !entry.name.startsWith(".") && entry.name !== "node_modules") {
+      try {
+        results.push(...await scanDirectoryForExcel(entry, entryPath));
+      } catch { /* skip inaccessible directories */ }
+    }
+  }
+  return results.sort((a, b) => b.lastModified - a.lastModified);
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 export default function HomePage() {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -302,6 +378,10 @@ export default function HomePage() {
   const [progress, setProgress] = useState("Drop an .xlsx workbook here or click upload to begin.");
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [discoveredFiles, setDiscoveredFiles] = useState<DiscoveredFile[]>([]);
+  const [isScanning, setIsScanning] = useState(false);
+  const [showFileBrowser, setShowFileBrowser] = useState(false);
+  const [scanFolderName, setScanFolderName] = useState("");
 
   useEffect(() => {
     void fetchRegistry().then(setRecentFiles).catch(() => undefined);
@@ -324,10 +404,49 @@ export default function HomePage() {
 
   async function handleFile(file: File) {
     setError(null);
+    setShowFileBrowser(false);
     await uploadFile(file, {
       onProgress: (message) => setProgress(message),
       onDone: (payload) => router.push(`/workbook/${payload.file_id}`),
     }).catch((err) => setError(err instanceof Error ? err.message : "Upload failed"));
+  }
+
+  async function handleBrowseFolder() {
+    // Check browser support for File System Access API
+    if (!("showDirectoryPicker" in window)) {
+      // Fallback: just open regular file picker
+      inputRef.current?.click();
+      return;
+    }
+    try {
+      const dirHandle = await (window as any).showDirectoryPicker({ mode: "read" });
+      setScanFolderName(dirHandle.name);
+      setShowFileBrowser(true);
+      setIsScanning(true);
+      setDiscoveredFiles([]);
+      const files = await scanDirectoryForExcel(dirHandle);
+      setDiscoveredFiles(files);
+      setIsScanning(false);
+      if (files.length === 0) {
+        setError("No .xlsx files found in the selected folder.");
+        setShowFileBrowser(false);
+      }
+    } catch (err: any) {
+      // User cancelled the picker
+      if (err?.name !== "AbortError") {
+        setError("Could not access that folder. Try a different one.");
+      }
+      setIsScanning(false);
+    }
+  }
+
+  async function handlePickDiscoveredFile(discovered: DiscoveredFile) {
+    try {
+      const file = await discovered.handle.getFile();
+      await handleFile(file);
+    } catch {
+      setError("Could not read that file. It may have been moved or deleted.");
+    }
   }
 
   const capabilityStrip = useMemo(
@@ -388,6 +507,16 @@ export default function HomePage() {
               <button className="rounded-2xl bg-accent px-6 py-4 text-white shadow-[0_14px_30px_rgba(15,118,110,0.22)] transition hover:-translate-y-0.5 hover:bg-accent-dim disabled:cursor-not-allowed disabled:opacity-60" onClick={() => inputRef.current?.click()} disabled={backendStatus ? !backendStatus.ready : false}>
                 Upload Workbook
               </button>
+              <button
+                className="rounded-2xl border border-accent/30 bg-white px-6 py-4 text-accent shadow-sm transition hover:-translate-y-0.5 hover:border-accent hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
+                onClick={handleBrowseFolder}
+                disabled={backendStatus ? !backendStatus.ready : false}
+              >
+                <span className="flex items-center gap-2">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>
+                  Browse Files
+                </span>
+              </button>
               <div className="min-w-[280px] rounded-2xl border border-border-subtle bg-white/90 px-5 py-4 text-sm text-text-secondary shadow-sm">{progress}</div>
             </div>
             {backendStatus && !backendStatus.ready ? (
@@ -424,6 +553,64 @@ export default function HomePage() {
           </div>
           <HeroDemo />
         </section>
+
+        {/* ── File Browser Modal ── */}
+        {showFileBrowser ? (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" onClick={() => setShowFileBrowser(false)}>
+            <div className="mx-4 w-full max-w-xl animate-fade-in-up rounded-[30px] border border-border-subtle bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-[11px] uppercase tracking-[0.24em] text-text-tertiary">File Browser</div>
+                  <h3 className="mt-1 text-lg font-semibold tracking-tight">Excel files in <span className="text-accent">{scanFolderName}</span></h3>
+                </div>
+                <button onClick={() => setShowFileBrowser(false)} className="rounded-full border border-border-subtle p-2 text-text-secondary transition hover:border-accent hover:text-accent">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                </button>
+              </div>
+
+              {isScanning ? (
+                <div className="mt-8 flex flex-col items-center gap-4 py-12">
+                  <div className="h-8 w-8 animate-spin rounded-full border-2 border-accent/20 border-t-accent" />
+                  <div className="text-sm text-text-secondary">Scanning for .xlsx files…</div>
+                </div>
+              ) : (
+                <div className="mt-5 max-h-[400px] space-y-2 overflow-y-auto">
+                  {discoveredFiles.map((file, idx) => (
+                    <button
+                      key={`${file.path}-${idx}`}
+                      onClick={() => void handlePickDiscoveredFile(file)}
+                      className="group flex w-full items-center gap-4 rounded-2xl border border-border-subtle bg-bg-deep p-4 text-left transition hover:border-accent/40 hover:bg-accent/5 hover:shadow-sm"
+                    >
+                      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-accent/10 text-accent">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" /></svg>
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate font-medium tracking-tight">{file.name}</div>
+                        <div className="mt-0.5 truncate text-xs text-text-tertiary">{file.path}</div>
+                      </div>
+                      <div className="flex flex-shrink-0 flex-col items-end gap-1">
+                        <div className="text-xs text-text-secondary">{formatFileSize(file.size)}</div>
+                        <div className="text-[10px] text-text-tertiary">{new Date(file.lastModified).toLocaleDateString()}</div>
+                      </div>
+                      <div className="rounded-full bg-accent px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-white opacity-0 transition group-hover:opacity-100">
+                        Open
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div className="mt-5 flex items-center justify-between">
+                <div className="text-xs text-text-tertiary">
+                  {isScanning ? "Searching…" : `${discoveredFiles.length} file${discoveredFiles.length === 1 ? "" : "s"} found`}
+                </div>
+                <button onClick={handleBrowseFolder} className="rounded-full border border-border-subtle px-4 py-2 text-sm text-text-secondary transition hover:border-accent hover:text-accent">
+                  Scan different folder
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
 
         <section className="mt-12 overflow-hidden rounded-[30px] border border-border-subtle bg-white/80 py-4 shadow-sm">
           <div className="ticker-track flex gap-3 whitespace-nowrap px-6">

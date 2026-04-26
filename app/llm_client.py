@@ -1,12 +1,18 @@
+"""CalcSense LLM Client — LangChain-based model abstraction.
+
+Provides a unified interface for OpenAI and Anthropic/Bedrock models
+using LangChain's ChatOpenAI / ChatAnthropic.
+"""
+
 from __future__ import annotations
 
-import json
 from pathlib import Path
-from typing import Callable, Generator, Iterable, Optional
+from typing import Any, Callable, Generator, Iterable, Optional
 
-import httpx
+from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 
-from config_loader import get_config_bool, get_config_value
+from config_loader import get_config_value
 
 
 Message = dict[str, str]
@@ -14,6 +20,13 @@ UsageDict = dict[str, int | str]
 
 
 class LLMClient:
+    """LangChain-based LLM client for CalcSense.
+
+    Resolves the right model (OpenAI or Anthropic) from environment
+    configuration and provides both sync invoke and streaming generator
+    interfaces compatible with the existing chain and route architecture.
+    """
+
     def __init__(
         self,
         api_env: str = "test",
@@ -27,10 +40,8 @@ class LLMClient:
         self.app_name = app_name
         self.aws_region = aws_region
         self.runtime = (get_config_value("EFT_RUNTIME") or "local").lower()
-        self.model_mode = (get_config_value("EFT_LLM_MODE") or "").strip().lower()
-        self.api_key = self._resolve_api_key()
-        self.authorization = self._resolve_authorization()
-        self.verify = self._resolve_verify(certificate_path)
+
+        # Resolve endpoints and keys
         self.openai_url = self._resolve_endpoint(
             exact_key="EFT_OPENAI_PROXY_URL",
             path_key="EFT_OPENAI_PROXY_PATH",
@@ -41,12 +52,8 @@ class LLMClient:
             path_key="EFT_BEDROCK_PROXY_PATH",
             default_path="/v1/proxy/bedrock",
         )
-
-    @property
-    def is_mock_mode(self) -> bool:
-        if self.model_mode == "mock":
-            return True
-        return not bool(self.authorization and self.openai_url)
+        self.api_key = self._resolve_api_key()
+        self.authorization = self._resolve_authorization()
 
     def _resolve_api_key(self) -> str:
         return (
@@ -64,17 +71,6 @@ class LLMClient:
             return f"Basic {self.api_key}"
         return ""
 
-    def _resolve_verify(self, certificate_path: Optional[str]) -> str | bool:
-        path = certificate_path or get_config_value("EFT_SSL_CERT")
-        if path:
-            candidate = Path(path)
-            if candidate.exists():
-                return str(candidate)
-        default_cert = Path(__file__).resolve().parent / "certificates" / "proxy-certificate.crt"
-        if default_cert.exists() and default_cert.read_text().strip():
-            return str(default_cert)
-        return not get_config_bool("EFT_SKIP_SSL_VERIFY", False)
-
     def _resolve_endpoint(self, exact_key: str, path_key: str, default_path: str) -> str:
         exact = get_config_value(exact_key)
         if exact:
@@ -82,8 +78,6 @@ class LLMClient:
         direct_openai = get_config_value("OPENAI_BASE_URL") or get_config_value("OPENAI_API_BASE_URL")
         if exact_key == "EFT_OPENAI_PROXY_URL" and direct_openai:
             return direct_openai.rstrip("/")
-        if exact_key == "EFT_OPENAI_PROXY_URL" and get_config_value("OPENAI_API_KEY"):
-            return "https://api.openai.com/v1/chat/completions"
         host = get_config_value("LLM_PROXY_HOST")
         scheme = get_config_value("LLM_PROXY_SCHEME") or "https"
         path = get_config_value(path_key) or default_path
@@ -91,154 +85,92 @@ class LLMClient:
             return ""
         return f"{scheme}://{host}{path}"
 
-    def _headers(self) -> dict[str, str]:
-        headers = {
-            "Content-Type": "application/json",
-            "x-client-app": self.app_name,
-        }
-        if get_config_value("OPENAI_API_KEY") and (
-            self.openai_url.startswith("https://api.openai.com")
-            or bool(get_config_value("OPENAI_BASE_URL") or get_config_value("OPENAI_API_BASE_URL"))
-        ):
-            headers["Authorization"] = f"Bearer {get_config_value('OPENAI_API_KEY')}"
-        elif self.authorization:
-            headers["Authorization"] = self.authorization
-        return headers
+    # ─── Model Factory ───────────────────────────────────────────────────
 
-    def _client(self) -> httpx.Client:
-        return httpx.Client(timeout=self.timeout, verify=self.verify)
-
-    def _extract_text_from_payload(self, payload: dict) -> str:
-        if isinstance(payload.get("response_text"), str):
-            return payload["response_text"]
-        choices = payload.get("choices")
-        if isinstance(choices, list) and choices:
-            choice = choices[0]
-            message = choice.get("message", {})
-            content = message.get("content")
-            if isinstance(content, str):
-                return content
-            if isinstance(content, list):
-                texts = [item.get("text", "") for item in content if isinstance(item, dict)]
-                return "".join(texts)
-            delta = choice.get("delta", {})
-            if isinstance(delta.get("content"), str):
-                return delta["content"]
-        output = payload.get("output")
-        if isinstance(output, list):
-            parts: list[str] = []
-            for item in output:
-                if not isinstance(item, dict):
-                    continue
-                content = item.get("content")
-                if isinstance(content, list):
-                    for sub in content:
-                        if isinstance(sub, dict) and isinstance(sub.get("text"), str):
-                            parts.append(sub["text"])
-            return "".join(parts)
-        content = payload.get("content")
-        if isinstance(content, str):
-            return content
-        if isinstance(content, list):
-            return "".join(item.get("text", "") for item in content if isinstance(item, dict))
-        return ""
-
-    def _extract_usage(self, payload: dict) -> UsageDict:
-        usage = payload.get("usage", {}) if isinstance(payload.get("usage"), dict) else {}
-        input_tokens = usage.get("input_tokens") or usage.get("prompt_tokens") or payload.get("input_tokens") or 0
-        output_tokens = usage.get("output_tokens") or usage.get("completion_tokens") or payload.get("output_tokens") or 0
-        total_tokens = usage.get("total_tokens") or payload.get("total_tokens") or (input_tokens + output_tokens)
-        return {
-            "response_text": self._extract_text_from_payload(payload),
-            "input_tokens": int(input_tokens),
-            "output_tokens": int(output_tokens),
-            "total_tokens": int(total_tokens),
-        }
-
-    def _post_json(self, url: str, payload: dict) -> dict:
-        with self._client() as client:
-            response = client.post(url, headers=self._headers(), json=payload)
-            response.raise_for_status()
-            return response.json()
-
-    def _iter_stream_events(self, response: httpx.Response) -> Generator[dict | str, None, None]:
-        for line in response.iter_lines():
-            if not line:
-                continue
-            text = line.decode() if isinstance(line, bytes) else line
-            if text.startswith("data: "):
-                text = text[6:].strip()
-                if text == "[DONE]":
-                    continue
-                try:
-                    yield json.loads(text)
-                except json.JSONDecodeError:
-                    yield text
-                continue
-            try:
-                yield json.loads(text)
-            except json.JSONDecodeError:
-                yield text
-
-    def _stream_json(
+    def get_openai_model(
         self,
-        url: str,
-        payload: dict,
-        on_delta: Optional[Callable[[str], None]] = None,
-    ) -> Generator[str | UsageDict, None, None]:
-        with self._client() as client:
-            with client.stream("POST", url, headers=self._headers(), json=payload) as response:
-                response.raise_for_status()
-                output_parts: list[str] = []
-                usage: UsageDict = {
-                    "response_text": "",
-                    "input_tokens": 0,
-                    "output_tokens": 0,
-                    "total_tokens": 0,
-                }
-                for event in self._iter_stream_events(response):
-                    if isinstance(event, str):
-                        if event:
-                            output_parts.append(event)
-                            if on_delta:
-                                on_delta(event)
-                            yield event
-                        continue
-                    chunk = self._extract_text_from_payload(event)
-                    if chunk:
-                        output_parts.append(chunk)
-                        if on_delta:
-                            on_delta(chunk)
-                        yield chunk
-                    if isinstance(event.get("usage"), dict) or "input_tokens" in event or "output_tokens" in event:
-                        usage = self._extract_usage(event)
-                final_text = "".join(output_parts)
-                usage["response_text"] = final_text
-                yield usage
+        model: str = "gpt-4.1-2025-04-14",
+        temperature: float = 0.0,
+        max_tokens: int = 3000,
+        streaming: bool = False,
+    ) -> BaseChatModel:
+        """Return a ChatOpenAI model."""
+        from langchain_openai import ChatOpenAI
 
-    def _mock_completion(self, prompt_kind: str, messages: Iterable[Message]) -> str:
-        latest = next((msg["content"] for msg in reversed(list(messages)) if msg.get("role") == "user"), "")
-        if prompt_kind == "business":
-            return (
-                "## What is this metric?\n\n"
-                "This is a locally generated placeholder summary because the LLM proxy is not configured yet.\n\n"
-                "## How is it calculated?\n\n"
-                "The metric rolls up workbook dependencies and describes them at a business level once the real proxy is available.\n\n"
-                "## Base inputs\n\n"
-                "- **Workbook inputs** — raw values sourced from the uploaded spreadsheet.\n"
-            )
-        if prompt_kind == "optimize":
-            return (
-                "I am running in local mock mode, so this optimization verdict is a placeholder.\n\n"
-                "```json\n"
-                '{"verdict":"keep","reason":"LLM proxy is not configured yet, so no optimization analysis was performed."}\n'
-                "```"
-            )
-        return (
-            "This is a locally generated placeholder explanation because the LLM proxy is not configured.\n\n"
-            "---FORMULA---\n\n"
-            f"[Uploaded Metric] = [Awaiting real proxy]\n\nSource excerpt length: {len(latest)}"
-        )
+        kwargs: dict[str, Any] = {
+            "model": model,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "streaming": streaming,
+            "request_timeout": self.timeout,
+        }
+
+        # Direct OpenAI API key
+        openai_key = get_config_value("OPENAI_API_KEY") or ""
+        if openai_key:
+            kwargs["api_key"] = openai_key
+            if self.openai_url and not self.openai_url.startswith("https://api.openai.com"):
+                kwargs["base_url"] = self.openai_url
+        elif self.openai_url:
+            # Proxy-based auth
+            kwargs["base_url"] = self.openai_url
+            kwargs["api_key"] = "proxy"
+            kwargs["default_headers"] = {
+                "Authorization": self.authorization,
+                "x-client-app": self.app_name,
+            }
+
+        return ChatOpenAI(**kwargs)
+
+    def get_anthropic_model(
+        self,
+        model: str = "claude-3-5-sonnet-20241022",
+        temperature: float = 0.1,
+        max_tokens: int = 3000,
+        streaming: bool = False,
+    ) -> BaseChatModel:
+        """Return a ChatAnthropic model."""
+        from langchain_anthropic import ChatAnthropic
+
+        anthropic_key = get_config_value("ANTHROPIC_API_KEY") or ""
+        kwargs: dict[str, Any] = {
+            "model": model,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "streaming": streaming,
+            "timeout": self.timeout,
+        }
+        if anthropic_key and not anthropic_key.startswith("your-"):
+            kwargs["api_key"] = anthropic_key
+        elif self.bedrock_url:
+            kwargs["base_url"] = self.bedrock_url
+            kwargs["api_key"] = "proxy"
+            kwargs["default_headers"] = {
+                "Authorization": self.authorization,
+                "x-client-app": self.app_name,
+            }
+
+        return ChatAnthropic(**kwargs)
+
+    # ─── Call / Stream Methods ───────────────────────────────────────────
+
+    @staticmethod
+    def _messages_to_langchain(
+        messages: Iterable[Message], system_prompt: str = ""
+    ) -> list[BaseMessage]:
+        lc_messages: list[BaseMessage] = []
+        if system_prompt:
+            lc_messages.append(SystemMessage(content=system_prompt))
+        for msg in messages:
+            role = msg.get("role", "user")
+            content = msg.get("content", "")
+            if role == "system":
+                lc_messages.append(SystemMessage(content=content))
+            elif role == "assistant":
+                lc_messages.append(AIMessage(content=content))
+            else:
+                lc_messages.append(HumanMessage(content=content))
+        return lc_messages
 
     def call_openai(
         self,
@@ -249,28 +181,21 @@ class LLMClient:
         temperature: float = 0.0,
         on_delta: Optional[Callable[[str], None]] = None,
     ) -> UsageDict:
-        messages_list = list(messages)
-        if self.is_mock_mode:
-            text = self._mock_completion("explain", messages_list)
-            if on_delta:
-                on_delta(text)
-            return {
-                "response_text": text,
-                "input_tokens": 0,
-                "output_tokens": 0,
-                "total_tokens": 0,
-            }
-        payload = {
-            "model": model,
-            "messages": ([{"role": "system", "content": system_prompt}] if system_prompt else []) + messages_list,
-            "max_tokens": max_tokens,
-            "temperature": temperature,
+        lc_model = self.get_openai_model(model=model, temperature=temperature, max_tokens=max_tokens)
+        lc_messages = self._messages_to_langchain(messages, system_prompt)
+        result = lc_model.invoke(lc_messages)
+
+        text = result.content if isinstance(result.content, str) else str(result.content)
+        if on_delta and text:
+            on_delta(text)
+
+        usage = getattr(result, "usage_metadata", None) or {}
+        return {
+            "response_text": text,
+            "input_tokens": getattr(usage, "input_tokens", 0) if usage else 0,
+            "output_tokens": getattr(usage, "output_tokens", 0) if usage else 0,
+            "total_tokens": getattr(usage, "total_tokens", 0) if usage else 0,
         }
-        data = self._post_json(self.openai_url, payload)
-        result = self._extract_usage(data)
-        if on_delta and result["response_text"]:
-            on_delta(str(result["response_text"]))
-        return result
 
     def stream_openai(
         self,
@@ -281,25 +206,17 @@ class LLMClient:
         temperature: float = 0.0,
         prompt_kind: str = "explain",
     ) -> Generator[str | UsageDict, None, None]:
-        messages_list = list(messages)
-        if self.is_mock_mode:
-            text = self._mock_completion(prompt_kind, messages_list)
-            yield text
-            yield {
-                "response_text": text,
-                "input_tokens": 0,
-                "output_tokens": 0,
-                "total_tokens": 0,
-            }
-            return
-        payload = {
-            "model": model,
-            "stream": True,
-            "messages": ([{"role": "system", "content": system_prompt}] if system_prompt else []) + messages_list,
-            "max_tokens": max_tokens,
-            "temperature": temperature,
-        }
-        yield from self._stream_json(self.openai_url, payload)
+        lc_model = self.get_openai_model(model=model, temperature=temperature, max_tokens=max_tokens, streaming=True)
+        lc_messages = self._messages_to_langchain(messages, system_prompt)
+
+        full_text = ""
+        for chunk in lc_model.stream(lc_messages):
+            token = chunk.content if isinstance(chunk.content, str) else str(chunk.content)
+            if token:
+                full_text += token
+                yield token
+
+        yield {"response_text": full_text, "input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
 
     def call_claude(
         self,
@@ -309,23 +226,18 @@ class LLMClient:
         max_tokens: int = 3000,
         temperature: float = 0.1,
     ) -> UsageDict:
-        messages_list = list(messages)
-        if self.is_mock_mode or not self.bedrock_url:
-            return {
-                "response_text": self._mock_completion("business", messages_list),
-                "input_tokens": 0,
-                "output_tokens": 0,
-                "total_tokens": 0,
-            }
-        payload = {
-            "model": model,
-            "messages": messages_list,
-            "system": system_prompt,
-            "max_tokens": max_tokens,
-            "temperature": temperature,
+        lc_model = self.get_anthropic_model(model=model, temperature=temperature, max_tokens=max_tokens)
+        lc_messages = self._messages_to_langchain(messages, system_prompt)
+        result = lc_model.invoke(lc_messages)
+
+        text = result.content if isinstance(result.content, str) else str(result.content)
+        usage = getattr(result, "usage_metadata", None) or {}
+        return {
+            "response_text": text,
+            "input_tokens": getattr(usage, "input_tokens", 0) if usage else 0,
+            "output_tokens": getattr(usage, "output_tokens", 0) if usage else 0,
+            "total_tokens": getattr(usage, "total_tokens", 0) if usage else 0,
         }
-        data = self._post_json(self.bedrock_url, payload)
-        return self._extract_usage(data)
 
     def stream_claude(
         self,
@@ -335,26 +247,17 @@ class LLMClient:
         max_tokens: int = 3000,
         temperature: float = 0.1,
     ) -> Generator[str | UsageDict, None, None]:
-        messages_list = list(messages)
-        if self.is_mock_mode or not self.bedrock_url:
-            text = self._mock_completion("business", messages_list)
-            yield text
-            yield {
-                "response_text": text,
-                "input_tokens": 0,
-                "output_tokens": 0,
-                "total_tokens": 0,
-            }
-            return
-        payload = {
-            "model": model,
-            "stream": True,
-            "messages": messages_list,
-            "system": system_prompt,
-            "max_tokens": max_tokens,
-            "temperature": temperature,
-        }
-        yield from self._stream_json(self.bedrock_url, payload)
+        lc_model = self.get_anthropic_model(model=model, temperature=temperature, max_tokens=max_tokens, streaming=True)
+        lc_messages = self._messages_to_langchain(messages, system_prompt)
+
+        full_text = ""
+        for chunk in lc_model.stream(lc_messages):
+            token = chunk.content if isinstance(chunk.content, str) else str(chunk.content)
+            if token:
+                full_text += token
+                yield token
+
+        yield {"response_text": full_text, "input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
 
     def transcribe_audio(
         self,
