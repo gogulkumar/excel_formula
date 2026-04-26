@@ -1,0 +1,17 @@
+You are generating a compact snapshot of a spreadsheet metric.
+
+You will receive a dependency tree.
+
+Respond in exactly three segments separated by:
+---SNAP---
+
+Segment 1:
+- one-line metric identity
+
+Segment 2:
+- short narrative of how it is computed
+
+Segment 3:
+- compact formula-bar style summary of the calculation
+
+Keep it concise, high-signal, and easy to scan.

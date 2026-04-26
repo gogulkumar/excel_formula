@@ -2,7 +2,15 @@
 
 import { Fragment, useMemo, useState } from "react";
 
-import { editCells, insertChart, streamChat } from "@/lib/api";
+import {
+  editCells,
+  insertChart,
+  streamChat,
+  streamDriverRanking,
+  streamWorkbookHealth,
+  streamWorkbookOverview,
+  traceDown,
+} from "@/lib/api";
 import type { TableRegion } from "@/lib/types";
 
 type Message = {
@@ -294,6 +302,7 @@ export function ChatPanel({
   const [selectedTables, setSelectedTables] = useState<number[]>([]);
   const [statusSteps, setStatusSteps] = useState<StatusStep[]>([]);
   const [activeStatus, setActiveStatus] = useState("");
+  const [error, setError] = useState("");
 
   const activePromptHints = useMemo(() => {
     if (selectedCell) {
@@ -331,6 +340,7 @@ export function ChatPanel({
   async function submit(prompt = input) {
     const message = prompt.trim();
     if (!message || streaming) return;
+    setError("");
     const history = [...messages, { role: "user" as const, text: message }];
     setMessages(history);
     setInput("");
@@ -369,9 +379,84 @@ export function ChatPanel({
           history: messages.map((item) => ({ role: item.role, content: item.text })),
         },
       );
+    } catch (err) {
+      const messageText = err instanceof Error ? err.message : "Chat failed.";
+      setError(messageText);
+      setMessages((current) => {
+        const next = [...current];
+        next[next.length - 1] = { role: "assistant", text: `Error: ${messageText}` };
+        return next;
+      });
     } finally {
       setStreaming(false);
     }
+  }
+
+  async function runAssistantAction(
+    label: string,
+    runner: (push: (text: string) => void) => Promise<void>,
+  ) {
+    if (streaming) return;
+    setError("");
+    setStreaming(true);
+    setActiveStatus(label);
+    setStatusSteps([{ text: label, time: Date.now() }]);
+    let assistantText = "";
+    setMessages((current) => [...current, { role: "assistant", text: "" }]);
+    try {
+      await runner((text) => {
+        assistantText += text;
+        setMessages((current) => {
+          const next = [...current];
+          next[next.length - 1] = { role: "assistant", text: assistantText };
+          return next;
+        });
+      });
+    } catch (err) {
+      const messageText = err instanceof Error ? err.message : "Assistant action failed.";
+      setError(messageText);
+      setMessages((current) => {
+        const next = [...current];
+        next[next.length - 1] = { role: "assistant", text: `Error: ${messageText}` };
+        return next;
+      });
+    } finally {
+      setStreaming(false);
+      setActiveStatus("");
+    }
+  }
+
+  async function handleWorkbookOverview() {
+    await runAssistantAction("Generating workbook overview", async (push) => {
+      await streamWorkbookOverview(fileId, push, {
+        sheet,
+        focus_cells: selectedCell ? [selectedCell] : [],
+        regenerate: true,
+      });
+    });
+  }
+
+  async function handleWorkbookHealth() {
+    await runAssistantAction("Running workbook health scan", async (push) => {
+      await streamWorkbookHealth(fileId, push, { sheet, regenerate: true });
+    });
+  }
+
+  async function handleDriverRanking() {
+    if (!selectedCell) {
+      setError("Select a formula cell first to rank its drivers.");
+      return;
+    }
+    await runAssistantAction(`Ranking drivers for ${selectedCell}`, async (push) => {
+      const trace = await traceDown(fileId, sheet, selectedCell);
+      await streamDriverRanking(
+        trace,
+        push,
+        undefined,
+        { file_id: fileId, sheet: trace.sheet, cell: trace.cell },
+        true,
+      );
+    });
   }
 
   const lastAssistant = messages.filter((item) => item.role === "assistant").at(-1);
@@ -425,12 +510,51 @@ export function ChatPanel({
             })}
           </div>
         ) : null}
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            onClick={() => void handleWorkbookOverview()}
+            disabled={streaming}
+            className="rounded-full border border-accent/20 bg-accent/5 px-3 py-2 text-xs text-accent transition hover:shadow-sm disabled:opacity-50"
+          >
+            Workbook overview
+          </button>
+          <button
+            onClick={() => void handleWorkbookHealth()}
+            disabled={streaming}
+            className="rounded-full border border-blue/20 bg-blue/5 px-3 py-2 text-xs text-blue transition hover:shadow-sm disabled:opacity-50"
+          >
+            Health scan
+          </button>
+          <button
+            onClick={() => void handleDriverRanking()}
+            disabled={streaming}
+            className="rounded-full border border-violet/20 bg-violet/5 px-3 py-2 text-xs text-violet transition hover:shadow-sm disabled:opacity-50"
+          >
+            Rank drivers
+          </button>
+        </div>
       </div>
       <div className="flex-1 space-y-4 overflow-auto p-5">
+        {error ? (
+          <div className="rounded-2xl border border-rose/20 bg-rose-glow px-4 py-3 text-sm text-rose">
+            {error}
+          </div>
+        ) : null}
         {!messages.length ? (
           <div className="rounded-3xl border border-border-subtle bg-bg-elevated p-5">
             <div className="text-sm text-text-secondary">
               I&apos;m looking at {selectedCell ? `cell ${selectedCell}` : `sheet ${sheet}`}. {tables.length ? `I can also use ${tables.length} detected table${tables.length > 1 ? "s" : ""} as context.` : "No tables are selected yet."}
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button onClick={() => void handleWorkbookOverview()} className="rounded-full border border-accent/20 bg-accent/5 px-3 py-2 text-sm text-accent transition hover:shadow-sm">
+                What does this workbook do?
+              </button>
+              <button onClick={() => void handleWorkbookHealth()} className="rounded-full border border-blue/20 bg-blue/5 px-3 py-2 text-sm text-blue transition hover:shadow-sm">
+                Run a health review
+              </button>
+              <button onClick={() => void handleDriverRanking()} className="rounded-full border border-violet/20 bg-violet/5 px-3 py-2 text-sm text-violet transition hover:shadow-sm">
+                Rank the drivers
+              </button>
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
               {activePromptHints.map((hint) => (
@@ -474,8 +598,13 @@ export function ChatPanel({
                 <EditPreview
                   edits={block.edit.edits}
                   onApply={async () => {
-                    await editCells(fileId, sheet, block.edit!.edits);
-                    await onRefresh();
+                    try {
+                      setError("");
+                      await editCells(fileId, sheet, block.edit!.edits);
+                      await onRefresh();
+                    } catch (err) {
+                      setError(err instanceof Error ? err.message : "Applying edits failed.");
+                    }
                   }}
                 />
               ) : null}
@@ -486,8 +615,13 @@ export function ChatPanel({
           <button
             className="rounded-2xl bg-violet px-4 py-2 text-sm text-white"
             onClick={async () => {
-              await insertChart(fileId, sheet, parsed.chart!, selectedTables.length ? tables[selectedTables[0]]?.range : undefined);
-              await onRefresh();
+              try {
+                setError("");
+                await insertChart(fileId, sheet, parsed.chart!, selectedTables.length ? tables[selectedTables[0]]?.range : undefined);
+                await onRefresh();
+              } catch (err) {
+                setError(err instanceof Error ? err.message : "Chart insertion failed.");
+              }
             }}
           >
             Insert into Excel

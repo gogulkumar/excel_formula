@@ -36,12 +36,15 @@ from config_loader import get_config_value
 from llm_client import LLMClient
 from backend.chains import (
     infer_persona,
+    stream_driver_ranking,
     stream_business_summary,
     stream_chat_response,
     stream_formula_reconstruction,
     stream_formula_snapshot,
     stream_optimization,
     stream_technical_explanation,
+    stream_workbook_health,
+    stream_workbook_overview,
 )
 
 
@@ -110,6 +113,9 @@ RATE_LIMITED_PATHS = {
     "/api/business-summary": (30, 60),
     "/api/reconstruct": (30, 60),
     "/api/snapshot": (30, 60),
+    "/api/workbook-overview": (20, 60),
+    "/api/workbook-health": (20, 60),
+    "/api/driver-ranking": (30, 60),
     "/api/optimize": (20, 60),
     "/api/table-explain-batch": (10, 60),
     "/api/top-metrics/explain-all": (10, 60),
@@ -205,6 +211,14 @@ class InsertChartReq(BaseModel):
 class SummaryExplainReq(BaseModel):
     file_id: str
     metrics: list[dict]
+    regenerate: bool = False
+    model: str = DEFAULT_MODEL
+
+
+class WorkbookInsightReq(BaseModel):
+    file_id: str
+    sheet: str = ""
+    focus_cells: list[str] = Field(default_factory=list)
     regenerate: bool = False
     model: str = DEFAULT_MODEL
 
@@ -928,6 +942,129 @@ def _count_nodes(node: dict[str, Any]) -> tuple[int, int, set[str]]:
     return total, formulas, sheets
 
 
+def _count_cross_sheet_refs(entry: dict[str, Any], fid: str) -> int:
+    index = _build_ref_index(fid)
+    total = 0
+    for parent_refs in index.values():
+        total += len(parent_refs)
+    return total
+
+
+def _count_formula_cells(entry: dict[str, Any], sheet_name: str) -> int:
+    ws = entry["wb_f"][sheet_name]
+    max_row, max_col = _sheet_extent(ws)
+    total = 0
+    for row in range(1, max_row + 1):
+        for col in range(1, max_col + 1):
+            if _cell_has_formula(ws, f"{_col_to_letter(col)}{row}"):
+                total += 1
+    return total
+
+
+def _build_workbook_overview_context(entry: dict[str, Any], fid: str, sheet: str = "", focus_cells: list[str] | None = None) -> str:
+    focus_cells = [cell.upper() for cell in (focus_cells or []) if cell]
+    selected_sheets = [sheet] if sheet and sheet in entry["wb_f"].sheetnames else entry["sheets"][:]
+    top_metrics = top_metrics(fid, sheets=",".join(selected_sheets), min_refs=2)["metrics"][:12]
+    lines = [
+        f"Workbook: {entry['filename']}",
+        f"Sheets ({len(entry['sheets'])}): {', '.join(entry['sheets'])}",
+        "",
+        "Sheet summaries:",
+    ]
+    for sheet_name in selected_sheets[:12]:
+        tables = _detect_tables(entry, fid, sheet_name)
+        formula_cells = _count_formula_cells(entry, sheet_name)
+        lines.append(f"- {sheet_name}: {formula_cells} formula cells, {len(tables)} detected tables")
+        for table in tables[:3]:
+            headers = ", ".join(table.get("headers", [])[:5]) or "no obvious headers"
+            lines.append(f"  - Table {table['range']} | {table['rows']} rows x {table['cols']} cols | headers: {headers}")
+    if top_metrics:
+        lines.extend(["", "Top metrics:"])
+        for metric in top_metrics:
+            lines.append(
+                f"- {metric['label']} ({metric['sheet']}!{metric['cell']}) = {metric['value']} | Formula: {metric['formula']}"
+            )
+    if focus_cells:
+        lines.extend(["", "Focused cells:"])
+        for ref in focus_cells[:8]:
+            target_sheet = sheet if sheet in entry["wb_f"].sheetnames else selected_sheets[0]
+            if not target_sheet:
+                continue
+            trace = _add_meta_to_trace(entry, _trace_node(entry, target_sheet, ref, set(), 0, 3))
+            lines.append(_trace_to_text(trace))
+    return "\n".join(lines)
+
+
+def _build_workbook_health_context(entry: dict[str, Any], fid: str, sheet: str = "") -> str:
+    selected_sheets = [sheet] if sheet and sheet in entry["wb_f"].sheetnames else entry["sheets"][:]
+    lines = [
+        f"Workbook: {entry['filename']}",
+        f"Sheet count: {len(entry['sheets'])}",
+        f"Cross-sheet reference entries: {_count_cross_sheet_refs(entry, fid)}",
+        "",
+        "Per-sheet health:",
+    ]
+    for sheet_name in selected_sheets[:12]:
+        ws = entry["wb_f"][sheet_name]
+        max_row, max_col = _sheet_extent(ws)
+        formula_cells = _count_formula_cells(entry, sheet_name)
+        tables = _detect_tables(entry, fid, sheet_name)
+        lines.append(
+            f"- {sheet_name}: extent {max_row} rows x {max_col} cols | formula cells {formula_cells} | tables {len(tables)}"
+        )
+        sample_formulas: list[str] = []
+        for row in range(1, max_row + 1):
+            for col in range(1, max_col + 1):
+                coord = f"{_col_to_letter(col)}{row}"
+                formula = _cell_formula(ws, coord)
+                if not formula:
+                    continue
+                refs, ranges, has_external = parse_refs(formula, sheet_name)
+                if has_external or len(refs) + len(ranges) >= 5 or len(formula) >= 80:
+                    sample_formulas.append(
+                        f"  - {coord}: len={len(formula)} refs={len(refs)} ranges={len(ranges)} external={has_external}"
+                    )
+                if len(sample_formulas) >= 5:
+                    break
+            if len(sample_formulas) >= 5:
+                break
+        if sample_formulas:
+            lines.append("  Notable formulas:")
+            lines.extend(sample_formulas)
+    top = top_metrics(fid, sheets=",".join(selected_sheets), min_refs=2)["metrics"][:10]
+    if top:
+        lines.extend(["", "Top metrics under review:"])
+        for metric in top:
+            lines.append(f"- {metric['label']} ({metric['sheet']}!{metric['cell']}) | {metric['formula']}")
+    return "\n".join(lines)
+
+
+def _build_driver_context(trace: dict[str, Any]) -> str:
+    ranked: list[tuple[str, str, int, int, str]] = []
+
+    def walk(node: dict[str, Any], depth: int) -> int:
+        descendants = 0
+        for dep in node.get("deps", []):
+            descendants += 1 + walk(dep, depth + 1)
+        ranked.append(
+            (
+                node.get("meta") or f"{node['sheet']}!{node['cell']}",
+                f"{node['sheet']}!{node['cell']}",
+                depth,
+                descendants,
+                "formula" if node.get("formula") else "input",
+            )
+        )
+        return descendants
+
+    walk(trace, 0)
+    ranked.sort(key=lambda item: (-item[3], item[2], item[0]))
+    lines = ["Dependency tree:", _trace_to_text(trace), "", "Deterministic ranking summary:"]
+    for label, ref, depth, descendants, kind in ranked[:12]:
+        lines.append(f"- {label} ({ref}) | type={kind} | depth={depth} | downstream_nodes={descendants}")
+    return "\n".join(lines)
+
+
 def _make_cache_key(sheet: str, cell: str, task_type: str) -> str:
     return f"{sheet}!{cell}:{task_type}"
 
@@ -1107,7 +1244,6 @@ async def wait_for_registry(request: Request, call_next):
         duration_ms=round((time.time() - started) * 1000, 1),
         client_ip=_client_ip(request),
     )
-    return response
     return response
 
 
@@ -1365,6 +1501,28 @@ def _start_explain_task(req: ExplainReq, task_type: str, max_tokens: int, chain_
     )
 
 
+def _start_workbook_task(
+    *,
+    req: WorkbookInsightReq,
+    task_type: str,
+    max_tokens: int,
+    chain_fn,
+    context_text: str,
+) -> dict[str, Any]:
+    cache_suffix = req.sheet or "_all"
+    if req.focus_cells:
+        cache_suffix += ":" + ",".join(sorted(cell.upper() for cell in req.focus_cells))
+    cache_key = f"{task_type}:{cache_suffix}"
+    return _start_or_reconnect_task(
+        task_type=task_type,
+        cache_key=cache_key,
+        file_id=req.file_id,
+        regenerate=req.regenerate,
+        chain_fn=chain_fn,
+        chain_kwargs={"context_text": context_text, "model": req.model or DEFAULT_MODEL, "max_tokens": max_tokens},
+    )
+
+
 @app.post("/api/explain")
 def explain(req: ExplainReq) -> dict[str, Any]:
     return _start_explain_task(req, "analyst", 4096, stream_technical_explanation)
@@ -1383,6 +1541,53 @@ def reconstruct(req: ExplainReq) -> dict[str, Any]:
 @app.post("/api/snapshot")
 def snapshot(req: ExplainReq) -> dict[str, Any]:
     return _start_explain_task(req, "snapshot", 800, stream_formula_snapshot)
+
+
+@app.post("/api/workbook-overview")
+def workbook_overview(req: WorkbookInsightReq) -> dict[str, Any]:
+    entry = _file_or_404(req.file_id)
+    context_text = _build_workbook_overview_context(entry, req.file_id, req.sheet, req.focus_cells)
+    return _start_workbook_task(
+        req=req,
+        task_type="workbook_overview",
+        max_tokens=2200,
+        chain_fn=stream_workbook_overview,
+        context_text=context_text,
+    )
+
+
+@app.post("/api/workbook-health")
+def workbook_health(req: WorkbookInsightReq) -> dict[str, Any]:
+    entry = _file_or_404(req.file_id)
+    context_text = _build_workbook_health_context(entry, req.file_id, req.sheet)
+    return _start_workbook_task(
+        req=req,
+        task_type="workbook_health",
+        max_tokens=2400,
+        chain_fn=stream_workbook_health,
+        context_text=context_text,
+    )
+
+
+@app.post("/api/driver-ranking")
+def driver_ranking(req: ExplainReq) -> dict[str, Any]:
+    trace = dict(req.trace)
+    label = trace.get("meta") or f"{trace.get('sheet', req.sheet)}!{trace.get('cell', req.cell)}"
+    context_text = _build_driver_context(trace)
+    cache_key = _make_cache_key(req.sheet, req.cell, "drivers") if req.file_id and req.sheet and req.cell else ""
+    return _start_or_reconnect_task(
+        task_type="drivers",
+        cache_key=cache_key,
+        file_id=req.file_id,
+        regenerate=req.regenerate,
+        chain_fn=stream_driver_ranking,
+        chain_kwargs={
+            "context_text": context_text,
+            "model": req.model or DEFAULT_MODEL,
+            "max_tokens": 1800,
+            "label": label,
+        },
+    )
 
 
 @app.get("/api/explanations/{fid}/{sheet:path}/{cell}")

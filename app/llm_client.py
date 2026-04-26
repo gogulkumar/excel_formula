@@ -51,6 +51,7 @@ class LLMClient:
     def _resolve_api_key(self) -> str:
         return (
             get_config_value("EFT_PROXY_API_KEY")
+            or get_config_value("OPENAI_API_KEY")
             or get_config_value(f"{self.api_env}_apikey")
             or ""
         )
@@ -78,6 +79,11 @@ class LLMClient:
         exact = get_config_value(exact_key)
         if exact:
             return exact.rstrip("/")
+        direct_openai = get_config_value("OPENAI_BASE_URL") or get_config_value("OPENAI_API_BASE_URL")
+        if exact_key == "EFT_OPENAI_PROXY_URL" and direct_openai:
+            return direct_openai.rstrip("/")
+        if exact_key == "EFT_OPENAI_PROXY_URL" and get_config_value("OPENAI_API_KEY"):
+            return "https://api.openai.com/v1/chat/completions"
         host = get_config_value("LLM_PROXY_HOST")
         scheme = get_config_value("LLM_PROXY_SCHEME") or "https"
         path = get_config_value(path_key) or default_path
@@ -90,7 +96,12 @@ class LLMClient:
             "Content-Type": "application/json",
             "x-client-app": self.app_name,
         }
-        if self.authorization:
+        if get_config_value("OPENAI_API_KEY") and (
+            self.openai_url.startswith("https://api.openai.com")
+            or bool(get_config_value("OPENAI_BASE_URL") or get_config_value("OPENAI_API_BASE_URL"))
+        ):
+            headers["Authorization"] = f"Bearer {get_config_value('OPENAI_API_KEY')}"
+        elif self.authorization:
             headers["Authorization"] = self.authorization
         return headers
 

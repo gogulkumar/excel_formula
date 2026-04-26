@@ -239,6 +239,64 @@ export function streamSnapshot(
   );
 }
 
+export function streamWorkbookOverview(
+  fileId: string,
+  onText: (text: string) => void,
+  opts?: {
+    sheet?: string;
+    focus_cells?: string[];
+    model?: string;
+    regenerate?: boolean;
+  },
+) {
+  return startTaskAndStream(
+    "/api/workbook-overview",
+    {
+      file_id: fileId,
+      sheet: opts?.sheet || "",
+      focus_cells: opts?.focus_cells || [],
+      model: opts?.model,
+      regenerate: opts?.regenerate ?? false,
+    },
+    onText,
+  );
+}
+
+export function streamWorkbookHealth(
+  fileId: string,
+  onText: (text: string) => void,
+  opts?: {
+    sheet?: string;
+    model?: string;
+    regenerate?: boolean;
+  },
+) {
+  return startTaskAndStream(
+    "/api/workbook-health",
+    {
+      file_id: fileId,
+      sheet: opts?.sheet || "",
+      model: opts?.model,
+      regenerate: opts?.regenerate ?? false,
+    },
+    onText,
+  );
+}
+
+export function streamDriverRanking(
+  trace: TraceNode,
+  onText: (text: string) => void,
+  model?: string,
+  cacheInfo?: { file_id: string; sheet: string; cell: string },
+  regenerate = false,
+) {
+  return startTaskAndStream(
+    "/api/driver-ranking",
+    { trace, model, regenerate, ...(cacheInfo || {}) },
+    onText,
+  );
+}
+
 export async function streamBatchExplain(
   metrics: { label: string; trace: TraceNode }[],
   onEvent: (event: Record<string, unknown>) => void,

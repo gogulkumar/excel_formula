@@ -28,7 +28,7 @@ export function AppHeader({
             <span className="h-2.5 w-2.5 rounded-full bg-blue" />
           </div>
           <div>
-            <div className="font-medium tracking-tight"><span className="text-accent">Formula</span>Lens</div>
+            <div className="font-medium tracking-tight"><span className="text-accent">Calc</span>Sense</div>
             <div className="text-xs uppercase tracking-[0.22em] text-text-tertiary">AI Workbook Intelligence</div>
           </div>
         </div>
@@ -38,6 +38,14 @@ export function AppHeader({
           ))}
         </div>
         <div className="flex items-center gap-3 text-sm text-text-secondary">
+          <a
+            href="https://www.linkedin.com/in/gogul-kumar-mathi-86079a148"
+            target="_blank"
+            rel="noreferrer"
+            className="hidden rounded-full border border-border-subtle px-3 py-2 hover:text-accent md:inline-flex"
+          >
+            Built by Gogul Kumar Mathi
+          </a>
           {filename ? <span className="font-mono-ui">{filename}</span> : null}
           {backHref ? <Link href={backHref} className="rounded-full border border-border-subtle px-3 py-2 hover:text-accent">Back to sheets</Link> : null}
           {downloadHref ? <a href={downloadHref} className="rounded-full border border-border-subtle px-3 py-2 hover:text-accent">Download</a> : null}
