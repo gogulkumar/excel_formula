@@ -5,9 +5,9 @@ import { useEffect, useState } from "react";
 import { ExplainView } from "@/components/explain-view";
 import { MetricFlow } from "@/components/metric-flow";
 import { TableView } from "@/components/table-view";
-import { fetchTableTrace, streamBusinessSummary, streamExplanation, streamReconstruction, streamSnapshot, traceUp } from "@/lib/api";
+import { fetchTableTrace, streamBusinessSummary, streamExplanation, streamReconstruction, streamSnapshot } from "@/lib/api";
 import { useOptimize } from "@/components/optimize-view";
-import type { TableMetric, TableRegion, TableTraceResult, TraceNode } from "@/lib/types";
+import type { TableMetric, TableRegion, TableTraceResult } from "@/lib/types";
 
 export function TableAnalysisPanel({
   fileId,
@@ -28,8 +28,6 @@ export function TableAnalysisPanel({
   const [businessSummary, setBusinessSummary] = useState("");
   const [reconstruction, setReconstruction] = useState("");
   const [snapshot, setSnapshot] = useState("");
-  const [traceUpNode, setTraceUpNode] = useState<TraceNode | null>(null);
-
   useEffect(() => {
     if (!selectedTable) return;
     void fetchTableTrace(fileId, sheet, selectedTable.range).then(setTraceResult);
@@ -37,12 +35,6 @@ export function TableAnalysisPanel({
 
   const metric = traceResult?.metrics[selectedMetricIndex] || null;
   const optimize = useOptimize(metric, sheet);
-
-  useEffect(() => {
-    if (!metric?.cells[0]) return;
-    setTraceUpNode(null);
-    void traceUp(fileId, metric.cells[0].sheet, metric.cells[0].cell).then(setTraceUpNode);
-  }, [fileId, metric]);
 
   async function handleExplain() {
     if (!metric?.cells[0]) return;
@@ -87,13 +79,13 @@ export function TableAnalysisPanel({
         <div className="m-5 h-40 rounded-3xl animate-shimmer" />
       ) : (
         <div className="grid flex-1 gap-0 lg:grid-cols-[260px_1fr]">
-          <div className="border-r border-border-subtle p-4">
-            <div className="text-xs uppercase tracking-[0.2em] text-text-tertiary">Metrics</div>
-            <div className="mt-3 space-y-2">
+          <div className="border-r border-[#e1dfdd] bg-[#fbfaf7] p-5">
+            <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#a19f9d]">Metrics</div>
+            <div className="mt-4 flex flex-col gap-2">
               {traceResult.metrics.map((item, index) => (
-                <button key={`${item.label}-${index}`} onClick={() => setSelectedMetricIndex(index)} className={`block w-full rounded-2xl p-3 text-left ${selectedMetricIndex === index ? "bg-accent text-white" : "bg-bg-elevated"}`}>
-                  <div className="text-sm font-medium">{item.label}</div>
-                  <div className={`mt-1 font-mono-ui text-xs ${selectedMetricIndex === index ? "text-white/80" : "text-text-secondary"}`}>{item.cells[0]?.cell}</div>
+                <button key={`${item.label}-${index}`} onClick={() => setSelectedMetricIndex(index)} className={`block w-full rounded-xl p-3.5 text-left transition-all hover:-translate-y-0.5 ${selectedMetricIndex === index ? "bg-white shadow-md ring-1 ring-[#e1dfdd] scale-[1.02]" : "bg-transparent hover:bg-[#edebe9]"}`}>
+                  <div className={`text-sm font-semibold ${selectedMetricIndex === index ? "text-[#107c41]" : "text-[#323130]"}`}>{item.label}</div>
+                  <div className={`mt-1.5 font-mono-ui text-[10px] tracking-wider ${selectedMetricIndex === index ? "text-[#605e5c]" : "text-[#a19f9d]"}`}>{item.cells[0]?.cell}</div>
                 </button>
               ))}
             </div>
@@ -106,7 +98,7 @@ export function TableAnalysisPanel({
                 </button>
               ))}
             </div>
-            {view === "tree" && metric?.cells[0] ? <MetricFlow key={`${selectedMetricIndex}-${metric.cells[0].cell}`} trace={metric.cells[0]} traceUp={traceUpNode} /> : null}
+            {view === "tree" && metric?.cells[0] ? <MetricFlow key={`${selectedMetricIndex}-${metric.cells[0].cell}`} trace={metric.cells[0]} /> : null}
             {view === "explain" && metric?.cells[0] ? (
               <ExplainView
                 explanation={explanation}
