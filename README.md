@@ -1,10 +1,10 @@
-# FormulaLens
+# CalcSense
 
-FormulaLens is an AI-assisted workbook intelligence platform designed to help teams understand, explain, and modernize complex Excel models faster. This repository contains the Excel Formula Tracer application delivered through the FormulaLens product experience. It converts hidden spreadsheet logic into a transparent, navigable application so analysts, finance leaders, and transformation teams can review business-critical formulas without manually reverse-engineering large workbooks.
+CalcSense is an AI-assisted workbook intelligence platform designed to help teams understand, explain, and modernize complex Excel models faster. This repository contains the Excel Formula Tracer application delivered through the CalcSense product experience. It converts hidden spreadsheet logic into a transparent, navigable application so analysts, finance leaders, and transformation teams can review business-critical formulas without manually reverse-engineering large workbooks.
 
 ## Executive Summary
 
-Spreadsheet models often become operational systems of record, yet their logic is difficult to audit, explain, and transfer. FormulaLens addresses that gap by turning `.xlsx` workbooks into an interactive experience that exposes formula dependencies, highlights top-level metrics, detects table structures, and generates both technical and executive-ready explanations.
+Spreadsheet models often become operational systems of record, yet their logic is difficult to audit, explain, and transfer. CalcSense addresses that gap by turning `.xlsx` workbooks into an interactive experience that exposes formula dependencies, highlights top-level metrics, detects table structures, and generates both technical and executive-ready explanations.
 
 The result is a faster path to:
 
@@ -15,7 +15,7 @@ The result is a faster path to:
 
 ## Business Value
 
-FormulaLens is built for scenarios where spreadsheet complexity creates delivery, control, or continuity risk.
+CalcSense is built for scenarios where spreadsheet complexity creates delivery, control, or continuity risk.
 
 ### Typical use cases
 
@@ -57,7 +57,7 @@ FormulaLens is built for scenarios where spreadsheet complexity creates delivery
 
 ## Platform Overview
 
-FormulaLens is delivered as a two-tier web application:
+CalcSense is delivered as a two-tier web application:
 
 - **Backend:** FastAPI services for upload, parsing, tracing, table detection, metrics, and AI task orchestration
 - **Frontend:** Next.js application for workbook upload, browsing, tracing, and analysis workflows
@@ -146,7 +146,7 @@ EFT_RUNTIME=local
 EFT_API_ENV=test
 EFT_LLM_MODE=mock
 NEXT_PUBLIC_API_URL=http://localhost:8010
-APP_NAME=formulalens
+APP_NAME=calcsense
 AWS_REGION=us-east-1
 ```
 

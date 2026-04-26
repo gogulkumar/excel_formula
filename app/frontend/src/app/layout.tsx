@@ -11,8 +11,8 @@ const serif = Instrument_Serif({ subsets: ["latin"], weight: "400", variable: "-
 const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
 export const metadata: Metadata = {
-  title: "FormulaLens",
-  description: "FormulaLens — AI reads every formula, follows every reference, and explains workbook logic in plain English.",
+  title: "CalcSense",
+  description: "CalcSense — AI reads every formula, follows every reference, and explains workbook logic in plain English.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
