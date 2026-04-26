@@ -52,7 +52,7 @@ function StageDrop() {
         <div className="flex items-center justify-between">
           <div>
             <div className="eyebrow">Drag and drop</div>
-            <div className="mt-2 text-lg font-semibold tracking-tight">Drop an operating model into FormulaLens</div>
+            <div className="mt-2 text-lg font-semibold tracking-tight">Drop an operating model into CalcSense</div>
           </div>
           <div className="rounded-full border border-border-subtle bg-white px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-text-secondary">
             Stage 1
@@ -226,7 +226,7 @@ function StageChat() {
             <div className="mt-2 text-sm">Build a chart showing quarterly revenue and insert it near the summary block.</div>
           </div>
           <div className="rounded-[24px] border border-violet/15 bg-violet/5 px-4 py-3 shadow-sm">
-            <div className="text-xs uppercase tracking-[0.18em] text-violet">FormulaLens</div>
+            <div className="text-xs uppercase tracking-[0.18em] text-violet">CalcSense</div>
             <div className="mt-2 text-sm leading-6 text-text-secondary">
               I found the revenue rows, built a quarterly bar chart, and prepared the insert action for the current sheet.
             </div>
