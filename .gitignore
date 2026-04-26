@@ -3,8 +3,8 @@ __pycache__/
 *.pyc
 app/.env
 app/secrets.json
+secrets.json
 app/backend/uploads/
 app/frontend/.next/
 app/frontend/node_modules/
 dist/
-

@@ -14,11 +14,17 @@
   --text-tertiary: #9c9b96;
   --accent: #0f766e;
   --accent-dim: #0d6c65;
+  --accent-glow: rgba(15, 118, 110, 0.07);
+  --accent-glow-strong: rgba(15, 118, 110, 0.14);
   --teal: #059669;
   --teal-dim: #047857;
+  --teal-glow: rgba(5, 150, 105, 0.07);
   --rose: #b91c1c;
+  --rose-glow: rgba(185, 28, 28, 0.06);
   --violet: #7c3aed;
+  --violet-glow: rgba(124, 58, 237, 0.06);
   --blue: #2563eb;
+  --blue-glow: rgba(37, 99, 235, 0.06);
 }
 
 @theme inline {
@@ -38,9 +44,13 @@
   --color-rose: var(--rose);
   --color-violet: var(--violet);
   --color-blue: var(--blue);
+  --font-sans: "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-serif: "Instrument Serif", Georgia, serif;
+  --font-mono: "JetBrains Mono", monospace;
 }
 
-html, body {
+html,
+body {
   background:
     radial-gradient(circle at top left, rgba(15, 118, 110, 0.08), transparent 28%),
     radial-gradient(circle at top right, rgba(124, 58, 237, 0.07), transparent 24%),
@@ -61,20 +71,37 @@ body {
   font-family: "JetBrains Mono", monospace;
 }
 
+.eyebrow {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+}
+
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
 .react-flow__attribution {
-  display: none;
+  display: none !important;
 }
 
 .react-flow__node {
-  cursor: default;
+  cursor: default !important;
 }
 
-@keyframes fade-in-up {
+@keyframes fadeInUp {
   from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes slide-in-right {
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideInRight {
   from { opacity: 0; transform: translateX(20px); }
   to { opacity: 1; transform: translateX(0); }
 }
@@ -84,53 +111,179 @@ body {
   to { background-position: 200% 0; }
 }
 
-@keyframes float-slow {
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes floatSlow {
   0%, 100% { transform: translateY(0px); }
   50% { transform: translateY(-8px); }
 }
 
-@keyframes pulse-soft {
-  0%, 100% { opacity: 0.55; transform: scale(1); }
-  50% { opacity: 1; transform: scale(1.03); }
+@keyframes floatMed {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-12px); }
 }
 
-@keyframes dash-flow {
+@keyframes dashFlow {
   from { stroke-dashoffset: 0; }
   to { stroke-dashoffset: -18; }
 }
 
-.animate-fade-in-up {
-  animation: fade-in-up 0.5s ease both;
+@keyframes pulseSlow {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.03); }
 }
 
-.animate-slide-in-right {
-  animation: slide-in-right 0.4s ease both;
+@keyframes auroraOne {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(18px, -12px, 0) scale(1.08); }
 }
 
+@keyframes auroraTwo {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50% { transform: translate3d(-24px, 18px, 0) scale(1.1); }
+}
+
+@keyframes stageEnter {
+  0% { opacity: 0; transform: scale(0.96) translateY(8px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes stageProgress {
+  from { width: 0%; }
+  to { width: 100%; }
+}
+
+@keyframes chartBarGrow {
+  from { transform: scaleY(0); opacity: 0.5; }
+  to { transform: scaleY(1); opacity: 1; }
+}
+
+@keyframes cursorFly {
+  0% { transform: translate(0, 0); opacity: 0; }
+  10% { opacity: 1; }
+  35% { transform: translate(92px, 48px); }
+  60% { transform: translate(152px, 106px); }
+  100% { transform: translate(182px, 164px); opacity: 0; }
+}
+
+@keyframes ghostDrop {
+  0% { transform: translate(0, 0) rotate(-8deg); opacity: 0; }
+  10% { opacity: 1; }
+  35% { transform: translate(82px, 42px) rotate(-2deg); }
+  70% { transform: translate(140px, 140px) rotate(5deg); opacity: 1; }
+  100% { transform: translate(140px, 170px) rotate(5deg); opacity: 0; }
+}
+
+@keyframes ripple {
+  0% { transform: translate(-50%, -50%) scale(0.3); opacity: 0; }
+  30% { opacity: 0.55; }
+  100% { transform: translate(-50%, -50%) scale(2.4); opacity: 0; }
+}
+
+@keyframes zoneFlash {
+  0%, 100% { opacity: 0.15; box-shadow: 0 0 0 rgba(15, 118, 110, 0.12); }
+  35% { opacity: 0.65; box-shadow: 0 0 32px rgba(15, 118, 110, 0.18); }
+}
+
+@keyframes confirmRise {
+  0%, 55% { opacity: 0; transform: translate(-50%, 8px); }
+  75% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0.92; transform: translate(-50%, -2px); }
+}
+
+@keyframes scanSweep {
+  from { transform: translateX(-120%); }
+  to { transform: translateX(520%); }
+}
+
+@keyframes treeNodePop {
+  0% { opacity: 0; transform: scale(0.7) translateY(10px); }
+  70% { opacity: 1; transform: scale(1.04) translateY(0); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes typewriterReveal {
+  from { clip-path: inset(0 100% 0 0); opacity: 0; }
+  to { clip-path: inset(0 0 0 0); opacity: 1; }
+}
+
+@keyframes shimmerText {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+@keyframes sparkle {
+  0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
+  50% { transform: scale(1.2) rotate(16deg); opacity: 0.8; }
+}
+
+@keyframes uploadInvite {
+  0%, 100% { box-shadow: 0 0 0 rgba(15, 118, 110, 0); }
+  50% { box-shadow: 0 0 24px rgba(15, 118, 110, 0.16); }
+}
+
+@keyframes tickerTrack {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.animate-fade-in-up { animation: fadeInUp 0.5s ease both; }
+.animate-fade-in { animation: fadeIn 0.4s ease-out both; }
+.animate-slide-in-right { animation: slideInRight 0.4s ease both; }
 .animate-shimmer {
   background: linear-gradient(90deg, #f2f1ee 25%, #ebeae7 50%, #f2f1ee 75%);
   background-size: 200% 100%;
-  animation: shimmer 2s infinite linear;
+  animation: shimmer 2s ease-in-out infinite;
 }
+.animate-float-slow { animation: floatSlow 4s ease-in-out infinite; }
+.animate-float-med { animation: floatMed 3s ease-in-out infinite; }
+.animate-dash-flow { animation: dashFlow 1.5s linear infinite; }
+.animate-pulse-soft { animation: pulseSlow 2.4s ease-in-out infinite; }
+.animate-slide-up { animation: slideUp 0.35s ease-out both; }
+.animate-aurora-1 { animation: auroraOne 22s ease-in-out infinite; }
+.animate-aurora-2 { animation: auroraTwo 28s ease-in-out infinite reverse; }
+.animate-ai-shimmer-text { animation: shimmerText 4s linear infinite; }
+.animate-sparkle { animation: sparkle 2.4s ease-in-out infinite; }
 
-.animate-float-slow {
-  animation: float-slow 4s ease-in-out infinite;
-}
-
-.animate-pulse-soft {
-  animation: pulse-soft 2.4s ease-in-out infinite;
-}
-
-.animate-dash-flow {
-  animation: dash-flow 1.5s linear infinite;
-}
-
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--border-medium);
+.stage-enter { animation: stageEnter 0.5s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.stage-progress-bar { animation: stageProgress var(--stage-duration, 3000ms) linear both; }
+.chart-bar-grow { transform-origin: bottom; animation: chartBarGrow 0.65s ease-out both; }
+.cursor-fly { animation: cursorFly 2.4s ease-in-out infinite; }
+.ghost-drop { animation: ghostDrop 2.4s ease-in-out infinite; }
+.ripple-1 { animation: ripple 2.4s ease-out infinite; }
+.ripple-2 { animation: ripple 2.4s ease-out infinite 0.08s; }
+.zone-flash { animation: zoneFlash 2.4s ease-in-out infinite; }
+.confirm-rise { animation: confirmRise 2.4s ease-in-out infinite; }
+.scan-sweep { animation: scanSweep 2.4s linear infinite; }
+.tree-node-pop { animation: treeNodePop 0.45s cubic-bezier(0.18, 1.2, 0.32, 1) both; }
+.typewriter { animation: typewriterReveal 0.9s steps(30, end) both; }
+.upload-invite { animation: uploadInvite 3.4s ease-in-out infinite; }
+.ticker-track { width: max-content; animation: tickerTrack 9s linear infinite; }
+.hover-lift:hover { transform: translateY(-3px); box-shadow: 0 18px 40px rgba(0, 0, 0, 0.06); }
+.headline-highlight { position: relative; }
+.headline-highlight::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -10px;
+  height: 10px;
+  width: min(220px, 45%);
+  background: linear-gradient(90deg, rgba(15, 118, 110, 0.2), rgba(124, 58, 237, 0.14));
   border-radius: 999px;
+  animation: slideUp 1.4s ease-out 0.6s both;
 }
+
+.delay-1 { animation-delay: 0.05s; }
+.delay-2 { animation-delay: 0.1s; }
+.delay-3 { animation-delay: 0.15s; }
+.delay-4 { animation-delay: 0.2s; }
+.delay-5 { animation-delay: 0.25s; }
+.delay-6 { animation-delay: 0.3s; }
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-medium); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
