@@ -13,7 +13,7 @@ export function ProductTour() {
   const [step, setStep] = useState(0);
 
   useEffect(() => {
-    const seen = window.localStorage.getItem("formulalens-tour-seen");
+    const seen = window.localStorage.getItem("calcsense-tour-seen");
     if (!seen) setOpen(true);
   }, []);
 
@@ -23,7 +23,7 @@ export function ProductTour() {
     <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/20 p-6 backdrop-blur-sm md:items-center">
       <div className="w-full max-w-lg rounded-[32px] border border-white/40 bg-white p-6 shadow-2xl">
         <div className="text-xs uppercase tracking-[0.24em] text-accent">Product Tour</div>
-        <h2 className="mt-3 text-2xl font-medium tracking-tight">How FormulaLens works</h2>
+        <h2 className="mt-3 text-2xl font-medium tracking-tight">How CalcSense works</h2>
         <p className="mt-4 text-sm leading-7 text-text-secondary">{TOUR_STEPS[step]}</p>
         <div className="mt-6 flex items-center justify-between">
           <div className="flex gap-2">
@@ -35,7 +35,7 @@ export function ProductTour() {
             <button
               className="rounded-full border border-border-subtle px-4 py-2 text-sm text-text-secondary"
               onClick={() => {
-                window.localStorage.setItem("formulalens-tour-seen", "1");
+                window.localStorage.setItem("calcsense-tour-seen", "1");
                 setOpen(false);
               }}
             >
@@ -45,7 +45,7 @@ export function ProductTour() {
               className="rounded-full bg-accent px-4 py-2 text-sm text-white"
               onClick={() => {
                 if (step === TOUR_STEPS.length - 1) {
-                  window.localStorage.setItem("formulalens-tour-seen", "1");
+                  window.localStorage.setItem("calcsense-tour-seen", "1");
                   setOpen(false);
                   return;
                 }

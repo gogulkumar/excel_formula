@@ -32,7 +32,7 @@ from config_loader import get_config_value
 from llm_client import LLMClient
 
 
-app = FastAPI(title="FormulaLens")
+app = FastAPI(title="CalcSense")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000", "http://localhost:8080"],
@@ -71,7 +71,7 @@ _task_lock = threading.Lock()
 _file_locks_lock = threading.Lock()
 _boot_status = {
     "stage": "booting",
-    "detail": "Starting FormulaLens",
+    "detail": "Starting CalcSense",
     "files_total": 0,
     "files_loaded": 0,
     "ready": False,
@@ -863,7 +863,7 @@ def _read_prompt(name: str) -> str:
 def _llm_client() -> LLMClient:
     return LLMClient(
         api_env=get_config_value("EFT_API_ENV") or "test",
-        app_name=get_config_value("APP_NAME") or "formulalens",
+        app_name=get_config_value("APP_NAME") or "calcsense",
         aws_region=get_config_value("AWS_REGION") or "us-east-1",
     )
 

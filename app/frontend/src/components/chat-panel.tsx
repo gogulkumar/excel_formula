@@ -127,7 +127,7 @@ export function ChatPanel({
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="text-xs uppercase tracking-[0.24em] text-text-tertiary">Workbook Chat</div>
-            <h2 className="mt-2 text-lg font-medium">Ask FormulaLens</h2>
+            <h2 className="mt-2 text-lg font-medium">Ask CalcSense</h2>
             <div className="mt-2 text-sm text-text-secondary">Use the workbook context to explain formulas, suggest edits, or propose charts.</div>
           </div>
           <button onClick={onClose} className="rounded-full border border-border-subtle px-3 py-2 text-sm">Close</button>
@@ -168,7 +168,7 @@ export function ChatPanel({
           const block = isAssistant ? parseBlocks(message.text) : null;
           return (
             <div key={`${message.role}-${index}`} className={`rounded-3xl p-4 ${isAssistant ? "border border-border-subtle bg-white" : "ml-10 bg-accent text-white"}`}>
-              <div className="text-xs uppercase tracking-[0.18em] opacity-70">{isAssistant ? "FormulaLens" : "You"}</div>
+              <div className="text-xs uppercase tracking-[0.18em] opacity-70">{isAssistant ? "CalcSense" : "You"}</div>
               {block?.text ? <div className="mt-2 whitespace-pre-wrap text-sm leading-6">{block.text}</div> : !isAssistant ? <div className="mt-2 whitespace-pre-wrap text-sm leading-6">{message.text}</div> : null}
               {block?.chart ? <div className="mt-4"><SimpleChart spec={block.chart} /></div> : null}
               {block?.edit?.edits?.length ? (
