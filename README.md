@@ -86,7 +86,7 @@ FormulaLens is delivered as a two-tier web application:
 
 - OpenAI-compatible proxy support
 - Bedrock-compatible proxy support
-- environment-driven configuration
+- Environment-driven configuration
 - local mock mode for development and demos
 
 ## Current Maturity
