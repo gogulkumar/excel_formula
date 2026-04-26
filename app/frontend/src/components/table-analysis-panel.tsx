@@ -40,6 +40,7 @@ export function TableAnalysisPanel({
 
   useEffect(() => {
     if (!metric?.cells[0]) return;
+    setTraceUpNode(null);
     void traceUp(fileId, metric.cells[0].sheet, metric.cells[0].cell).then(setTraceUpNode);
   }, [fileId, metric]);
 
@@ -105,7 +106,7 @@ export function TableAnalysisPanel({
                 </button>
               ))}
             </div>
-            {view === "tree" && metric?.cells[0] ? <MetricFlow trace={metric.cells[0]} traceUp={traceUpNode} /> : null}
+            {view === "tree" && metric?.cells[0] ? <MetricFlow key={`${selectedMetricIndex}-${metric.cells[0].cell}`} trace={metric.cells[0]} traceUp={traceUpNode} /> : null}
             {view === "explain" && metric?.cells[0] ? (
               <ExplainView
                 explanation={explanation}
