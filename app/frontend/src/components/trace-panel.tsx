@@ -18,6 +18,12 @@ export function TracePanel({
   businessSummary,
   summarizing,
   onBusinessSummary,
+  reconstruction,
+  reconstructing,
+  onReconstruct,
+  snapshot,
+  snapshotting,
+  onSnapshot,
 }: {
   trace: TraceNode | null;
   traceUp: TraceNode | null;
@@ -30,6 +36,12 @@ export function TracePanel({
   businessSummary: string;
   summarizing: boolean;
   onBusinessSummary: () => void;
+  reconstruction: string;
+  reconstructing: boolean;
+  onReconstruct: () => void;
+  snapshot: string;
+  snapshotting: boolean;
+  onSnapshot: () => void;
 }) {
   return (
     <aside className="animate-slide-in-right flex h-full flex-col rounded-[32px] border border-border-subtle bg-white">
@@ -69,10 +81,16 @@ export function TracePanel({
           <ExplainView
             explanation={explanation}
             businessSummary={businessSummary}
+            reconstruction={reconstruction}
+            snapshot={snapshot}
             explaining={explaining}
             summarizing={summarizing}
+            reconstructing={reconstructing}
+            snapshotting={snapshotting}
             onExplain={onExplain}
             onBusinessSummary={onBusinessSummary}
+            onReconstruct={onReconstruct}
+            onSnapshot={onSnapshot}
           />
         )}
       </div>

@@ -4,10 +4,27 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 
+import { ChatPanel } from "@/components/chat-panel";
+import { FormatToolbar } from "@/components/format-toolbar";
 import { AppHeader } from "@/components/header";
 import { TableAnalysisPanel } from "@/components/table-analysis-panel";
 import { TracePanel } from "@/components/trace-panel";
-import { fetchFile, fetchSheetStream, fetchTables, streamBusinessSummary, streamExplanation, traceDown, traceUp } from "@/lib/api";
+import {
+  downloadWorkbookUrl,
+  editCells,
+  fetchCachedExplanations,
+  fetchFile,
+  fetchSheetStream,
+  fetchTables,
+  formatCells,
+  reloadWorkbook,
+  streamBusinessSummary,
+  streamExplanation,
+  streamReconstruction,
+  streamSnapshot,
+  traceDown,
+  traceUp,
+} from "@/lib/api";
 import { colToLetter, parseRange } from "@/lib/utils";
 import type { Cell, FileEntry, SheetData, TableRegion, TraceNode } from "@/lib/types";
 
@@ -26,22 +43,51 @@ export default function SheetPage() {
   const [progress, setProgress] = useState("Loading sheet...");
   const [explanation, setExplanation] = useState("");
   const [businessSummary, setBusinessSummary] = useState("");
+  const [reconstruction, setReconstruction] = useState("");
+  const [snapshot, setSnapshot] = useState("");
   const [showTracePanel, setShowTracePanel] = useState(false);
   const [showTablePanel, setShowTablePanel] = useState(false);
+  const [showChatPanel, setShowChatPanel] = useState(false);
   const [selectedCell, setSelectedCell] = useState<Cell | null>(null);
 
   useEffect(() => {
     void fetchFile(fileId).then(setFile);
-    void fetchSheetStream(fileId, sheet, setProgress).then(setSheetData);
-    void fetchTables(fileId, sheet).then(setTables).catch(() => setTables([]));
+    void refreshSheet();
   }, [fileId, sheet]);
+
+  async function refreshSheet() {
+    await fetchSheetStream(fileId, sheet, setProgress).then(setSheetData);
+    await fetchTables(fileId, sheet).then(setTables).catch(() => setTables([]));
+  }
 
   useEffect(() => {
     if (!trace) return;
     setExplanation("");
+    setBusinessSummary("");
+    setReconstruction("");
+    setSnapshot("");
     setView("explain");
-    void streamExplanation(trace, (text) => setExplanation((current) => `${current}${text}`));
-  }, [trace]);
+    if (trace.sheet && trace.cell) {
+      void fetchCachedExplanations(fileId, trace.sheet, trace.cell)
+        .then((cached) => {
+          if (cached.analyst) setExplanation(cached.analyst);
+          if (cached.business) setBusinessSummary(cached.business);
+        })
+        .catch(() => undefined);
+    }
+    void streamExplanation(
+      trace,
+      (text) => setExplanation((current) => `${current}${text}`),
+      undefined,
+      { file_id: fileId, sheet: trace.sheet, cell: trace.cell },
+    );
+    void streamSnapshot(
+      trace,
+      (text) => setSnapshot((current) => `${current}${text}`),
+      undefined,
+      { file_id: fileId, sheet: trace.sheet, cell: trace.cell },
+    );
+  }, [fileId, trace]);
 
   const highlightCell = searchParams.get("highlight");
 
@@ -76,6 +122,7 @@ export default function SheetPage() {
     setSelectedCell(cell);
     if (!cell.f) return;
     setShowTablePanel(false);
+    setShowChatPanel(false);
     setShowTracePanel(true);
     const [down, up] = await Promise.all([traceDown(fileId, sheet, cell.r), traceUp(fileId, sheet, cell.r)]);
     const enrich = (node: TraceNode): TraceNode => ({
@@ -87,10 +134,53 @@ export default function SheetPage() {
     setUpTrace(enrich(up));
   }
 
+  async function handleApplyFormat(format: Record<string, unknown>) {
+    if (!selectedCell) return;
+    await formatCells(fileId, sheet, [selectedCell.r], format);
+    await reloadWorkbook(fileId, sheet);
+    await refreshSheet();
+  }
+
+  async function handleQuickClear() {
+    if (!selectedCell) return;
+    await editCells(fileId, sheet, [{ cell: selectedCell.r, value: null }]);
+    await refreshSheet();
+  }
+
   async function handleBusinessSummary() {
     if (!trace) return;
     setBusinessSummary("");
-    await streamBusinessSummary(trace, (text) => setBusinessSummary((current) => `${current}${text}`));
+    await streamBusinessSummary(
+      trace,
+      (text) => setBusinessSummary((current) => `${current}${text}`),
+      undefined,
+      { file_id: fileId, sheet: trace.sheet, cell: trace.cell },
+      true,
+    );
+  }
+
+  async function handleReconstruct() {
+    if (!trace) return;
+    setReconstruction("");
+    await streamReconstruction(
+      trace,
+      (text) => setReconstruction((current) => `${current}${text}`),
+      undefined,
+      { file_id: fileId, sheet: trace.sheet, cell: trace.cell },
+      true,
+    );
+  }
+
+  async function handleSnapshot() {
+    if (!trace) return;
+    setSnapshot("");
+    await streamSnapshot(
+      trace,
+      (text) => setSnapshot((current) => `${current}${text}`),
+      undefined,
+      { file_id: fileId, sheet: trace.sheet, cell: trace.cell },
+      true,
+    );
   }
 
   const tableBorders = useMemo(() => {
@@ -109,9 +199,9 @@ export default function SheetPage() {
 
   return (
     <main className="min-h-screen bg-bg-deep">
-      <AppHeader step={3} filename={file?.filename} fileId={fileId} />
+      <AppHeader step={3} filename={file?.filename} fileId={fileId} downloadHref={downloadWorkbookUrl(fileId)} backHref={`/workbook/${fileId}`} />
       <div className="mx-auto flex max-w-[1600px] gap-6 px-6 py-8">
-        <section className={`${showTracePanel || showTablePanel ? "w-[45%]" : "w-full"} min-w-0 transition-all`}>
+        <section className={`${showTracePanel || showTablePanel || showChatPanel ? "w-[45%]" : "w-full"} min-w-0 transition-all`}>
           <div className="rounded-[32px] border border-border-subtle bg-white">
             <div className="flex flex-wrap items-center justify-between gap-4 border-b border-border-subtle p-5">
               <div>
@@ -121,15 +211,31 @@ export default function SheetPage() {
               <div className="flex items-center gap-3">
                 <button className="rounded-2xl bg-accent px-4 py-3 text-white" onClick={() => {
                   setShowTracePanel(false);
+                  setShowChatPanel(false);
                   setShowTablePanel(true);
                 }}>
                   Analysis
                 </button>
+                <button className="rounded-2xl bg-violet px-4 py-3 text-white" onClick={() => {
+                  setShowTracePanel(false);
+                  setShowTablePanel(false);
+                  setShowChatPanel(true);
+                }}>
+                  Chat
+                </button>
                 <Link href={`/workbook/${fileId}`} className="rounded-2xl border border-border-subtle px-4 py-3 text-sm">All sheets</Link>
               </div>
             </div>
+            <FormatToolbar disabled={!selectedCell} onApply={handleApplyFormat} />
             <div className="border-b border-border-subtle bg-bg-elevated px-5 py-3 font-mono-ui text-sm">
-              {selectedCell?.f || selectedCell?.v || ""}
+              <div className="flex items-center justify-between gap-3">
+                <div className="truncate">{selectedCell?.f || selectedCell?.v || ""}</div>
+                {selectedCell ? (
+                  <button onClick={() => void handleQuickClear()} className="rounded-full border border-border-subtle px-3 py-1 text-xs text-text-secondary">
+                    Clear cell
+                  </button>
+                ) : null}
+              </div>
             </div>
             <div className="overflow-auto">
               <table className="min-w-full border-separate border-spacing-0">
@@ -155,11 +261,17 @@ export default function SheetPage() {
                           <td key={ref} className="border-b border-border-subtle p-0">
                             <button
                               id={`cell-${ref}`}
-                              title={`${getCellMeta(ref)} ${cell.f || ""}`.trim()}
+                              title={`${cell.m || getCellMeta(ref)} ${cell.f || ""}`.trim()}
                               onClick={() => void handleTrace(cell)}
                               className={`h-12 w-full min-w-[120px] px-3 text-left text-sm transition ${cell.f ? "bg-teal/10" : "bg-white"} ${selected ? "ring-2 ring-accent" : ""} ${highlighted ? "ring-2 ring-blue" : ""} ${isTable ? "border border-teal/30 bg-teal/5" : ""}`}
+                              style={{
+                                backgroundColor: cell.s?.bg || undefined,
+                                color: cell.s?.fg || undefined,
+                                fontWeight: cell.s?.b ? 700 : undefined,
+                                fontStyle: cell.s?.i ? "italic" : undefined,
+                              }}
                             >
-                              {cell.v}
+                              {cell.v || (cell.f ? "ƒx" : "")}
                             </button>
                           </td>
                         );
@@ -188,10 +300,16 @@ export default function SheetPage() {
               onClose={() => setShowTracePanel(false)}
               explanation={explanation}
               explaining={!explanation}
-              onExplain={() => trace && streamExplanation(trace, (text) => setExplanation((current) => `${current}${text}`))}
+              onExplain={() => trace && streamExplanation(trace, (text) => setExplanation((current) => `${current}${text}`), undefined, { file_id: fileId, sheet: trace.sheet, cell: trace.cell }, true)}
               businessSummary={businessSummary}
               summarizing={false}
               onBusinessSummary={handleBusinessSummary}
+              reconstruction={reconstruction}
+              reconstructing={false}
+              onReconstruct={handleReconstruct}
+              snapshot={snapshot}
+              snapshotting={false}
+              onSnapshot={handleSnapshot}
             />
           </section>
         ) : null}
@@ -200,8 +318,19 @@ export default function SheetPage() {
             <TableAnalysisPanel fileId={fileId} sheet={sheet} tables={tables} onClose={() => setShowTablePanel(false)} />
           </section>
         ) : null}
+        {showChatPanel ? (
+          <section className="w-[55%] min-w-0">
+            <ChatPanel
+              fileId={fileId}
+              sheet={sheet}
+              selectedCell={selectedCell?.r}
+              tables={tables}
+              onClose={() => setShowChatPanel(false)}
+              onRefresh={refreshSheet}
+            />
+          </section>
+        ) : null}
       </div>
     </main>
   );
 }
-

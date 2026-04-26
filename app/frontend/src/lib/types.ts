@@ -1,7 +1,17 @@
+export interface CellStyle {
+  bg?: string;
+  fg?: string;
+  b?: 1;
+  i?: 1;
+  nf?: string;
+}
+
 export interface Cell {
   r: string;
   v: string;
   f: string | null;
+  s?: CellStyle;
+  m?: string;
 }
 
 export interface RangeRef {
@@ -19,6 +29,7 @@ export interface TraceNode {
   ranges: RangeRef[];
   external?: boolean;
   meta?: string;
+  truncated?: boolean;
 }
 
 export interface FileEntry {
@@ -38,6 +49,14 @@ export interface LocalFileEntry {
 export interface SheetData {
   headers: string[];
   rows: Cell[][];
+}
+
+export interface BackendStatus {
+  stage: string;
+  detail: string;
+  files_total: number;
+  files_loaded: number;
+  ready: boolean;
 }
 
 export interface IndexingProgress {
@@ -92,4 +111,10 @@ export interface TopMetricDetail {
   trace: TraceNode;
   sheets_involved: string[];
   formula_text: string;
+}
+
+export interface TaskStartResponse {
+  task_id?: string;
+  cached?: boolean;
+  text?: string;
 }

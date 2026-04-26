@@ -8,10 +8,14 @@ export function AppHeader({
   step,
   filename,
   fileId,
+  downloadHref,
+  backHref,
 }: {
   step: 1 | 2 | 3;
   filename?: string;
   fileId?: string;
+  downloadHref?: string;
+  backHref?: string;
 }) {
   return (
     <header className="sticky top-0 z-50 border-b border-border-subtle/80 bg-white/85 backdrop-blur-xl">
@@ -24,8 +28,8 @@ export function AppHeader({
             <span className="h-2.5 w-2.5 rounded-full bg-blue" />
           </div>
           <div>
-            <div className="font-medium tracking-tight">Formula Tracer</div>
-            <div className="text-xs uppercase tracking-[0.22em] text-text-tertiary">Excel Intelligence</div>
+            <div className="font-medium tracking-tight"><span className="text-accent">Formula</span>Lens</div>
+            <div className="text-xs uppercase tracking-[0.22em] text-text-tertiary">AI Workbook Intelligence</div>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -33,8 +37,10 @@ export function AppHeader({
             <StepBadge key={n} n={n} active={step >= n} />
           ))}
         </div>
-        <div className="flex items-center gap-4 text-sm text-text-secondary">
+        <div className="flex items-center gap-3 text-sm text-text-secondary">
           {filename ? <span className="font-mono-ui">{filename}</span> : null}
+          {backHref ? <Link href={backHref} className="rounded-full border border-border-subtle px-3 py-2 hover:text-accent">Back to sheets</Link> : null}
+          {downloadHref ? <a href={downloadHref} className="rounded-full border border-border-subtle px-3 py-2 hover:text-accent">Download</a> : null}
           {fileId ? <Link href="/" className="text-accent hover:text-accent-dim">Start over</Link> : null}
         </div>
       </div>

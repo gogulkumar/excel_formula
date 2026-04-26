@@ -13,6 +13,7 @@ export function SummarySheet({ fileId, file }: { fileId: string; file: FileEntry
   const [details, setDetails] = useState<Record<string, TopMetricDetail>>({});
   const [analyst, setAnalyst] = useState<Record<string, string>>({});
   const [business, setBusiness] = useState<Record<string, string>>({});
+  const [blueprint, setBlueprint] = useState<Record<string, string>>({});
 
   async function scan() {
     const result = await fetchTopMetrics(fileId, selectedSheets, minDepth);
@@ -34,8 +35,10 @@ export function SummarySheet({ fileId, file }: { fileId: string; file: FileEntry
         const key = `${metric.sheet}!${metric.cell}`;
         if (event.type === "analyst") {
           setAnalyst((current) => ({ ...current, [key]: `${current[key] || ""}${event.text}` }));
-        } else {
+        } else if (event.type === "business") {
           setBusiness((current) => ({ ...current, [key]: `${current[key] || ""}${event.text}` }));
+        } else if (event.type === "blueprint") {
+          setBlueprint((current) => ({ ...current, [key]: `${current[key] || ""}${event.text}` }));
         }
       },
     );
@@ -73,16 +76,28 @@ export function SummarySheet({ fileId, file }: { fileId: string; file: FileEntry
           const key = `${metric.sheet}!${metric.cell}`;
           const detail = details[key];
           return (
-            <div key={key} className="grid gap-4 rounded-3xl border border-border-subtle p-5 lg:grid-cols-6">
+            <div key={key} className="grid gap-4 rounded-3xl border border-border-subtle p-5 xl:grid-cols-2">
               <div>
                 <div className="font-medium">{metric.label}</div>
                 <div className="mt-1 font-mono-ui text-xs text-text-secondary">{key}</div>
+                <div className="mt-3 font-mono-ui text-xs">{metric.formula}</div>
+                <div className="mt-3 text-xs text-text-secondary">{detail?.sheets_involved.join(", ") || "Tracing..."}</div>
+                <pre className="mt-3 overflow-auto rounded-2xl bg-bg-elevated p-3 font-mono-ui text-xs text-text-secondary">{detail?.formula_text || "Tracing..."}</pre>
               </div>
-              <div className="font-mono-ui text-xs">{metric.formula}</div>
-              <div className="text-xs text-text-secondary">{detail?.sheets_involved.join(", ") || "Tracing..."}</div>
-              <div className="font-mono-ui text-xs">{detail?.formula_text || "Tracing..."}</div>
-              <div className="prose prose-sm max-w-none">{analyst[key] ? <ReactMarkdown>{analyst[key]}</ReactMarkdown> : "Waiting..."}</div>
-              <div className="prose prose-sm max-w-none">{business[key] ? <ReactMarkdown>{business[key]}</ReactMarkdown> : "Waiting..."}</div>
+              <div className="space-y-3">
+                <div className="rounded-2xl border border-border-subtle p-4">
+                  <div className="mb-2 text-xs uppercase tracking-[0.18em] text-accent">Analyst</div>
+                  <div className="prose prose-sm max-w-none">{analyst[key] ? <ReactMarkdown>{analyst[key]}</ReactMarkdown> : "Waiting..."}</div>
+                </div>
+                <div className="rounded-2xl border border-border-subtle p-4">
+                  <div className="mb-2 text-xs uppercase tracking-[0.18em] text-teal">Business</div>
+                  <div className="prose prose-sm max-w-none">{business[key] ? <ReactMarkdown>{business[key]}</ReactMarkdown> : "Waiting..."}</div>
+                </div>
+                <div className="rounded-2xl border border-border-subtle p-4">
+                  <div className="mb-2 text-xs uppercase tracking-[0.18em] text-violet">Blueprint</div>
+                  <div className="prose prose-sm max-w-none">{blueprint[key] ? <ReactMarkdown>{blueprint[key]}</ReactMarkdown> : "Waiting..."}</div>
+                </div>
+              </div>
             </div>
           );
         })}
@@ -90,4 +105,3 @@ export function SummarySheet({ fileId, file }: { fileId: string; file: FileEntry
     </div>
   );
 }
-

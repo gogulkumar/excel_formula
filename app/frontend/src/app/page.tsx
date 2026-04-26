@@ -4,14 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { AppHeader } from "@/components/header";
-import { deleteFileEntry, fetchLocalFiles, fetchRegistry, importLocalFile, uploadFile } from "@/lib/api";
-import type { FileEntry, LocalFileEntry } from "@/lib/types";
+import { deleteFileEntry, fetchBackendStatus, fetchRegistry, uploadFile } from "@/lib/api";
+import type { BackendStatus, FileEntry } from "@/lib/types";
 
 const FEATURE_STEPS = [
   {
     number: "01",
     title: "Upload workbook",
-    body: "Bring in a live .xlsx or .csv model and preserve sheet structure, formulas, and values for analysis.",
+    body: "Bring in a live .xlsx model and preserve sheet structure, formulas, and values for analysis.",
   },
   {
     number: "02",
@@ -119,15 +119,28 @@ export default function HomePage() {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [recentFiles, setRecentFiles] = useState<FileEntry[]>([]);
-  const [localFiles, setLocalFiles] = useState<LocalFileEntry[]>([]);
-  const [progress, setProgress] = useState("Drop an .xlsx or .csv workbook here or click upload to begin.");
+  const [backendStatus, setBackendStatus] = useState<BackendStatus | null>(null);
+  const [progress, setProgress] = useState("Drop an .xlsx workbook here or click upload to begin.");
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [importingPath, setImportingPath] = useState<string | null>(null);
 
   useEffect(() => {
     void fetchRegistry().then(setRecentFiles).catch(() => undefined);
-    void fetchLocalFiles().then(setLocalFiles).catch(() => undefined);
+    let active = true;
+    const poll = async () => {
+      try {
+        const status = await fetchBackendStatus();
+        if (active) setBackendStatus(status);
+        if (status.ready || !active) return;
+      } catch {
+        if (!active) return;
+      }
+      setTimeout(() => void poll(), 1500);
+    };
+    void poll();
+    return () => {
+      active = false;
+    };
   }, []);
 
   async function handleFile(file: File) {
@@ -136,20 +149,6 @@ export default function HomePage() {
       onProgress: (message) => setProgress(message),
       onDone: (payload) => router.push(`/workbook/${payload.file_id}`),
     }).catch((err) => setError(err instanceof Error ? err.message : "Upload failed"));
-  }
-
-  async function handleImportLocal(path: string) {
-    setError(null);
-    setImportingPath(path);
-    setProgress("Importing local spreadsheet...");
-    try {
-      const payload = await importLocalFile(path);
-      router.push(`/workbook/${payload.file_id}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Local import failed");
-    } finally {
-      setImportingPath(null);
-    }
   }
 
   return (
@@ -169,14 +168,14 @@ export default function HomePage() {
     >
       <AppHeader step={1} />
       {isDragging ? (
-        <div className="pointer-events-none fixed inset-0 z-40 bg-accent/8 p-6 backdrop-blur-sm">
-          <div className="flex h-full items-center justify-center rounded-[36px] border-2 border-dashed border-accent/45 bg-white/80">
-            <div className="rounded-[28px] bg-white px-8 py-6 text-center shadow-xl">
-              <div className="text-xs uppercase tracking-[0.24em] text-accent">Drop workbook to upload</div>
-              <div className="mt-3 text-lg font-medium">Release your `.xlsx` or `.csv` file to begin tracing</div>
+            <div className="pointer-events-none fixed inset-0 z-40 bg-accent/8 p-6 backdrop-blur-sm">
+              <div className="flex h-full items-center justify-center rounded-[36px] border-2 border-dashed border-accent/45 bg-white/80">
+                <div className="rounded-[28px] bg-white px-8 py-6 text-center shadow-xl">
+                  <div className="text-xs uppercase tracking-[0.24em] text-accent">Drop workbook to upload</div>
+                  <div className="mt-3 text-lg font-medium">Release your `.xlsx` file to begin tracing</div>
+                </div>
+              </div>
             </div>
-          </div>
-        </div>
       ) : null}
       <div className="mx-auto max-w-7xl px-6 pb-20 pt-10">
         <section className="grid items-start gap-12 lg:grid-cols-[0.95fr_1.05fr]">
@@ -195,11 +194,16 @@ export default function HomePage() {
               Upload an Excel workbook to trace formulas down to their source values, visualize dependency chains, and generate analyst-grade explanations.
             </p>
             <div className="mt-10 flex flex-wrap gap-4">
-              <button className="rounded-2xl bg-accent px-6 py-4 text-white shadow-[0_14px_30px_rgba(15,118,110,0.22)] transition hover:-translate-y-0.5 hover:bg-accent-dim" onClick={() => inputRef.current?.click()}>
+              <button className="rounded-2xl bg-accent px-6 py-4 text-white shadow-[0_14px_30px_rgba(15,118,110,0.22)] transition hover:-translate-y-0.5 hover:bg-accent-dim disabled:cursor-not-allowed disabled:opacity-60" onClick={() => inputRef.current?.click()} disabled={backendStatus ? !backendStatus.ready : false}>
                 Upload Workbook
               </button>
               <div className="min-w-[280px] rounded-2xl border border-border-subtle bg-white/90 px-5 py-4 text-sm text-text-secondary shadow-sm">{progress}</div>
             </div>
+            {backendStatus && !backendStatus.ready ? (
+              <div className="mt-4 rounded-2xl border border-border-subtle bg-white/80 px-4 py-3 text-sm text-text-secondary">
+                {backendStatus.detail} ({backendStatus.files_loaded}/{backendStatus.files_total})
+              </div>
+            ) : null}
             {error ? <div className="mt-4 rounded-2xl border border-rose bg-rose/5 px-4 py-3 text-sm text-rose">{error}</div> : null}
             <div className="mt-10 grid gap-4">
               {FEATURE_STEPS.map((step, index) => (
@@ -219,7 +223,7 @@ export default function HomePage() {
             <input
               ref={inputRef}
               type="file"
-              accept=".xlsx,.csv,text/csv"
+              accept=".xlsx"
               className="hidden"
               onChange={(e) => {
                 const file = e.target.files?.[0];
@@ -228,47 +232,6 @@ export default function HomePage() {
             />
           </div>
           <HeroVisual />
-        </section>
-
-        <section className="mt-16">
-          <div className="mb-6 flex items-center justify-between">
-            <div>
-              <div className="text-[11px] uppercase tracking-[0.24em] text-text-tertiary">On This Mac</div>
-              <h2 className="mt-2 text-2xl font-medium tracking-tight">Local spreadsheets</h2>
-            </div>
-            <button
-              className="rounded-full border border-border-subtle bg-white px-4 py-2 text-sm text-text-secondary transition hover:border-accent hover:text-accent"
-              onClick={() => void fetchLocalFiles().then(setLocalFiles).catch(() => undefined)}
-            >
-              Refresh
-            </button>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-            {localFiles.slice(0, 6).map((file) => (
-              <div key={file.path} className="rounded-[30px] border border-border-subtle bg-white/90 p-5 shadow-sm">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="truncate font-medium tracking-tight">{file.filename}</div>
-                    <div className="mt-2 truncate text-sm text-text-secondary">{file.directory}</div>
-                  </div>
-                  <div className="rounded-full bg-bg-tint px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-accent">
-                    {file.filename.toLowerCase().endsWith(".csv") ? "CSV" : "XLSX"}
-                  </div>
-                </div>
-                <div className="mt-4 flex items-center justify-between text-xs text-text-tertiary">
-                  <span>{new Date(file.modified_at * 1000).toLocaleDateString()}</span>
-                  <span>{Math.max(1, Math.round(file.size_bytes / 1024))} KB</span>
-                </div>
-                <button
-                  className="mt-5 rounded-2xl bg-accent px-4 py-3 text-sm text-white transition hover:bg-accent-dim disabled:cursor-not-allowed disabled:opacity-60"
-                  disabled={importingPath === file.path}
-                  onClick={() => void handleImportLocal(file.path)}
-                >
-                  {importingPath === file.path ? "Importing..." : "Open Local File"}
-                </button>
-              </div>
-            ))}
-          </div>
         </section>
 
         <section className="mt-16">

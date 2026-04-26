@@ -1,6 +1,6 @@
-# Excel Formula Tracer
+# FormulaLens
 
-Excel Formula Tracer is a web application for understanding complex `.xlsx` workbooks and `.csv` datasets without manually reverse-engineering them in Excel. It uploads a workbook, parses formulas and computed values, traces dependency chains across sheets, visualizes them as interactive graphs, and generates AI-assisted explanations for analysts and business stakeholders.
+FormulaLens is an AI-powered web application for understanding and editing complex `.xlsx` workbooks without manually reverse-engineering them in Excel. It uploads a workbook, parses formulas and computed values, traces dependency chains across sheets, visualizes them as interactive graphs, and generates technical explanations, business summaries, blueprints, snapshots, optimization suggestions, and workbook chat responses.
 
 ## Why This Exists
 
@@ -14,7 +14,7 @@ This project turns that logic into a browsable application.
 
 ## Current Status
 
-This repository now includes a working MVP foundation with:
+This repository now includes a working FormulaLens foundation with:
 
 - FastAPI backend for workbook upload, parsing, tracing, table detection, and metric discovery
 - Next.js frontend for upload, sheet browsing, tracing, and table analysis flows
@@ -34,10 +34,11 @@ Still in progress:
 
 ### Workbook ingestion
 
-- Upload `.xlsx` and `.csv` files
+- Upload `.xlsx` files
 - Persist uploads and registry metadata on disk
 - Restore previously uploaded files on server restart
 - Load both formula and computed-value workbook variants
+- Expose backend readiness and boot status for the frontend
 
 ### Formula tracing
 
@@ -58,7 +59,10 @@ Still in progress:
 
 - Technical explanations for analyst audiences
 - Business summaries for executive audiences
+- Formula blueprint generation
+- Formula snapshot generation
 - Batch explanation flows for metrics
+- Background task streaming and reconnection for long-running LLM outputs
 - Optimization analysis endpoint with structured result parsing
 - Local mock mode for development without live proxy access
 
@@ -139,7 +143,7 @@ EFT_RUNTIME=local
 EFT_API_ENV=test
 EFT_LLM_MODE=mock
 NEXT_PUBLIC_API_URL=http://localhost:8010
-APP_NAME=excel-formula-tracer
+APP_NAME=formulalens
 AWS_REGION=us-east-1
 ```
 
@@ -215,6 +219,7 @@ What it does:
 
 - `GET /api/sheet/{fid}/{sheet}`
 - `GET /api/sheet-stream/{fid}/{sheet}`
+- `POST /api/reload/{fid}`
 - `GET /api/tables/{fid}/{sheet}`
 - `PUT /api/tables/{fid}/{sheet}`
 
@@ -230,6 +235,11 @@ What it does:
 
 - `POST /api/explain`
 - `POST /api/business-summary`
+- `POST /api/reconstruct`
+- `POST /api/snapshot`
+- `GET /api/task/{task_id}`
+- `GET /api/task/{task_id}/stream`
+- `POST /api/task/{task_id}/cancel`
 - `POST /api/table-explain-batch`
 - `POST /api/top-metrics/explain-all`
 - `POST /api/optimize`

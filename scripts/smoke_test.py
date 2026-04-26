@@ -27,7 +27,9 @@ def wait_for_ping(base_url: str, timeout_s: float = 20.0) -> None:
         try:
             response = httpx.get(f"{base_url}/ping", timeout=2.0)
             response.raise_for_status()
-            return
+            payload = response.json()
+            if payload.get("status") == "ok":
+                return
         except Exception as exc:  # noqa: BLE001
             last_error = exc
             time.sleep(0.5)
@@ -80,7 +82,22 @@ def build_workbook(path: Path) -> None:
     wb.save(path)
 
 
-def run_smoke(base_url: str, include_llm: bool, discovery_path: Path | None = None) -> None:
+def wait_for_task(base_url: str, task_id: str, timeout_s: float = 30.0) -> str:
+    deadline = time.time() + timeout_s
+    chunks: list[str] = []
+    while time.time() < deadline:
+        payload = httpx.get(f"{base_url}/api/task/{task_id}", timeout=5.0).json()
+        if payload["full_text"]:
+            chunks = [payload["full_text"]]
+        if payload["status"] in {"done", "cancelled"}:
+            return "".join(chunks)
+        if payload["status"] == "error":
+            raise RuntimeError(f"task failed: {payload}")
+        time.sleep(0.3)
+    raise RuntimeError(f"task {task_id} did not finish in time")
+
+
+def run_smoke(base_url: str, include_llm: bool) -> None:
     with tempfile.TemporaryDirectory() as tmpdir:
         tmp_root = Path(tmpdir)
         workbook_path = tmp_root / "smoke.xlsx"
@@ -103,6 +120,9 @@ def run_smoke(base_url: str, include_llm: bool, discovery_path: Path | None = No
         file_detail = httpx.get(f"{base_url}/api/files/{file_id}", timeout=10.0).json()
         assert file_detail["filename"] == "smoke.xlsx", file_detail
 
+        status = httpx.get(f"{base_url}/api/status", timeout=10.0).json()
+        assert "ready" in status, status
+
         sheet_events = parse_sse_text(httpx.get(f"{base_url}/api/sheet-stream/{file_id}/Summary", timeout=30.0).text)
         sheet_payload = next((event for event in sheet_events if event.get("done")), None)
         assert sheet_payload and sheet_payload["data"]["headers"][:2] == ["A", "B"], sheet_events
@@ -111,7 +131,7 @@ def run_smoke(base_url: str, include_llm: bool, discovery_path: Path | None = No
             f"{base_url}/api/trace",
             json={"file_id": file_id, "sheet": "Summary", "cell": "B4"},
             timeout=10.0,
-        ).json()
+        ).json()["trace_tree"]
         assert trace["formula"] == "=B2-B3", trace
         assert len(trace["deps"]) == 2, trace
 
@@ -119,7 +139,7 @@ def run_smoke(base_url: str, include_llm: bool, discovery_path: Path | None = No
             f"{base_url}/api/trace-up",
             json={"file_id": file_id, "sheet": "Revenue", "cell": "B5"},
             timeout=10.0,
-        ).json()
+        ).json()["trace_tree"]
         assert any(dep["cell"] == "B2" and dep["sheet"] == "Summary" for dep in trace_up["deps"]), trace_up
 
         tables = httpx.get(f"{base_url}/api/tables/{file_id}/Revenue", timeout=10.0).json()
@@ -132,7 +152,7 @@ def run_smoke(base_url: str, include_llm: bool, discovery_path: Path | None = No
         ).json()
         assert table_trace["total_formulas"] >= 3, table_trace
 
-        top_metrics = httpx.get(f"{base_url}/api/top-metrics/{file_id}?min_depth=1", timeout=10.0).json()
+        top_metrics = httpx.get(f"{base_url}/api/top-metrics/{file_id}?min_refs=1", timeout=10.0).json()
         assert any(metric["cell"] == "B4" and metric["sheet"] == "Summary" for metric in top_metrics["metrics"]), top_metrics
 
         top_metric_trace = httpx.post(
@@ -142,58 +162,30 @@ def run_smoke(base_url: str, include_llm: bool, discovery_path: Path | None = No
         assert "trace" in top_metric_trace and "formula_text" in top_metric_trace, top_metric_trace
 
         if include_llm:
-            explain_events = parse_sse_text(
-                httpx.post(f"{base_url}/api/explain", json={"trace": trace}, timeout=30.0).text
-            )
-            assert any("text" in event for event in explain_events), explain_events
-            business_events = parse_sse_text(
-                httpx.post(f"{base_url}/api/business-summary", json={"trace": trace}, timeout=30.0).text
-            )
-            assert any("text" in event for event in business_events), business_events
+            explain_start = httpx.post(
+                f"{base_url}/api/explain",
+                json={"trace": trace, "file_id": file_id, "sheet": "Summary", "cell": "B4", "regenerate": True},
+                timeout=30.0,
+            ).json()
+            assert explain_start.get("task_id"), explain_start
+            explain_text = wait_for_task(base_url, explain_start["task_id"])
+            assert explain_text, explain_text
+            cached = httpx.get(f"{base_url}/api/explanations/{file_id}/Summary/B4", timeout=10.0).json()
+            assert "analyst" in cached and cached["analyst"], cached
+            business_start = httpx.post(
+                f"{base_url}/api/business-summary",
+                json={"trace": trace, "file_id": file_id, "sheet": "Summary", "cell": "B4", "regenerate": True},
+                timeout=30.0,
+            ).json()
+            assert business_start.get("task_id"), business_start
+            business_text = wait_for_task(base_url, business_start["task_id"])
+            assert business_text, business_text
+
+        reload_payload = httpx.post(f"{base_url}/api/reload/{file_id}?sheet=Summary", timeout=10.0).json()
+        assert reload_payload["ok"] is True, reload_payload
 
         cleanup = httpx.delete(f"{base_url}/api/files/{file_id}", timeout=10.0).json()
         assert cleanup["ok"] is True, cleanup
-
-        csv_path = Path(tmpdir) / "smoke.csv"
-        csv_path.write_text(
-            "Metric,Q1,Q2,Total\n"
-            "Revenue,100,110,=B2+C2\n"
-            "Costs,40,45,=B3+C3\n"
-            "Profit,=B2-B3,=C2-C3,=D2-D3\n"
-        )
-        with csv_path.open("rb") as fh:
-            csv_response = httpx.post(
-                f"{base_url}/api/upload",
-                files={"file": (csv_path.name, fh, "text/csv")},
-                timeout=30.0,
-            )
-        csv_response.raise_for_status()
-        csv_events = parse_sse_text(csv_response.text)
-        csv_done = next((event for event in csv_events if event.get("done")), None)
-        assert csv_done, csv_events
-        csv_file_id = str(csv_done["file_id"])
-        csv_sheet = httpx.get(f"{base_url}/api/sheet/{csv_file_id}/Sheet1", timeout=10.0).json()
-        assert csv_sheet["headers"][:4] == ["A", "B", "C", "D"], csv_sheet
-        csv_trace = httpx.post(
-            f"{base_url}/api/trace",
-            json={"file_id": csv_file_id, "sheet": "Sheet1", "cell": "D4"},
-            timeout=10.0,
-        ).json()
-        assert csv_trace["formula"] == "=D2-D3", csv_trace
-        csv_cleanup = httpx.delete(f"{base_url}/api/files/{csv_file_id}", timeout=10.0).json()
-        assert csv_cleanup["ok"] is True, csv_cleanup
-
-        if discovery_path is not None:
-            local_files = httpx.get(f"{base_url}/api/local-files", timeout=10.0).json()
-            assert any(item["path"] == str(discovery_path) for item in local_files), local_files
-            local_import = httpx.post(
-                f"{base_url}/api/local-files/import",
-                json={"path": str(discovery_path)},
-                timeout=30.0,
-            ).json()
-            assert local_import["filename"] == discovery_path.name, local_import
-            local_cleanup = httpx.delete(f"{base_url}/api/files/{local_import['file_id']}", timeout=10.0).json()
-            assert local_cleanup["ok"] is True, local_cleanup
 
 
 def main() -> int:
@@ -209,21 +201,17 @@ def main() -> int:
             env = os.environ.copy()
             env.setdefault("PYTHONPATH", str(REPO_ROOT / "app"))
             env.setdefault("EFT_LLM_MODE", "mock")
-            with tempfile.TemporaryDirectory() as discovery_root:
-                smoke_path = Path(discovery_root) / "smoke.xlsx"
-                build_workbook(smoke_path)
-                env["EFT_LOCAL_DISCOVERY_ROOTS"] = discovery_root
-                server = subprocess.Popen(
-                    [str(PYTHON_BIN), "-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", "8000"],
-                    cwd=BACKEND_DIR,
-                    env=env,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
-                wait_for_ping(args.base_url)
-                run_smoke(args.base_url, args.include_llm, smoke_path)
-                print("smoke test passed")
-                return 0
+            server = subprocess.Popen(
+                [str(PYTHON_BIN), "-m", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", "8000"],
+                cwd=BACKEND_DIR,
+                env=env,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+            )
+            wait_for_ping(args.base_url)
+            run_smoke(args.base_url, args.include_llm)
+            print("smoke test passed")
+            return 0
         wait_for_ping(args.base_url)
         run_smoke(args.base_url, args.include_llm)
         print("smoke test passed")

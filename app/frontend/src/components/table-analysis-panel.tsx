@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 
 import { ExplainView } from "@/components/explain-view";
-import { TraceTree } from "@/components/trace-tree";
+import { MetricFlow } from "@/components/metric-flow";
 import { TableView } from "@/components/table-view";
-import { fetchTableTrace, streamBusinessSummary, streamExplanation, traceUp } from "@/lib/api";
+import { fetchTableTrace, streamBusinessSummary, streamExplanation, streamReconstruction, streamSnapshot, traceUp } from "@/lib/api";
 import { useOptimize } from "@/components/optimize-view";
 import type { TableMetric, TableRegion, TableTraceResult, TraceNode } from "@/lib/types";
 
@@ -26,6 +26,8 @@ export function TableAnalysisPanel({
   const [view, setView] = useState<"tree" | "explain" | "table" | "optimize">("tree");
   const [explanation, setExplanation] = useState("");
   const [businessSummary, setBusinessSummary] = useState("");
+  const [reconstruction, setReconstruction] = useState("");
+  const [snapshot, setSnapshot] = useState("");
   const [traceUpNode, setTraceUpNode] = useState<TraceNode | null>(null);
 
   useEffect(() => {
@@ -44,13 +46,25 @@ export function TableAnalysisPanel({
   async function handleExplain() {
     if (!metric?.cells[0]) return;
     setExplanation("");
-    await streamExplanation(metric.cells[0], (text) => setExplanation((current) => `${current}${text}`));
+    await streamExplanation(metric.cells[0], (text) => setExplanation((current) => `${current}${text}`), undefined, { file_id: fileId, sheet: metric.cells[0].sheet, cell: metric.cells[0].cell }, true);
   }
 
   async function handleBusiness() {
     if (!metric?.cells[0]) return;
     setBusinessSummary("");
-    await streamBusinessSummary(metric.cells[0], (text) => setBusinessSummary((current) => `${current}${text}`));
+    await streamBusinessSummary(metric.cells[0], (text) => setBusinessSummary((current) => `${current}${text}`), undefined, { file_id: fileId, sheet: metric.cells[0].sheet, cell: metric.cells[0].cell }, true);
+  }
+
+  async function handleReconstruct() {
+    if (!metric?.cells[0]) return;
+    setReconstruction("");
+    await streamReconstruction(metric.cells[0], (text) => setReconstruction((current) => `${current}${text}`), undefined, { file_id: fileId, sheet: metric.cells[0].sheet, cell: metric.cells[0].cell }, true);
+  }
+
+  async function handleSnapshot() {
+    if (!metric?.cells[0]) return;
+    setSnapshot("");
+    await streamSnapshot(metric.cells[0], (text) => setSnapshot((current) => `${current}${text}`), undefined, { file_id: fileId, sheet: metric.cells[0].sheet, cell: metric.cells[0].cell }, true);
   }
 
   return (
@@ -91,15 +105,21 @@ export function TableAnalysisPanel({
                 </button>
               ))}
             </div>
-            {view === "tree" && metric?.cells[0] ? <TraceTree trace={metric.cells[0]} traceUp={traceUpNode} /> : null}
+            {view === "tree" && metric?.cells[0] ? <MetricFlow trace={metric.cells[0]} traceUp={traceUpNode} /> : null}
             {view === "explain" && metric?.cells[0] ? (
               <ExplainView
                 explanation={explanation}
                 businessSummary={businessSummary}
+                reconstruction={reconstruction}
+                snapshot={snapshot}
                 explaining={false}
                 summarizing={false}
+                reconstructing={false}
+                snapshotting={false}
                 onExplain={handleExplain}
                 onBusinessSummary={handleBusiness}
+                onReconstruct={handleReconstruct}
+                onSnapshot={handleSnapshot}
               />
             ) : null}
             {view === "table" ? <TableView metrics={traceResult.metrics} /> : null}
@@ -116,4 +136,3 @@ export function TableAnalysisPanel({
     </aside>
   );
 }
-
