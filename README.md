@@ -1,74 +1,70 @@
 # FormulaLens
 
-FormulaLens is an AI-powered web application for understanding and editing complex `.xlsx` workbooks without manually reverse-engineering them in Excel. It uploads a workbook, parses formulas and computed values, traces dependency chains across sheets, visualizes them as interactive graphs, and generates technical explanations, business summaries, blueprints, snapshots, optimization suggestions, and workbook chat responses.
+FormulaLens is an AI-assisted workbook intelligence platform designed to help teams understand, explain, and modernize complex Excel models faster. It converts hidden spreadsheet logic into a transparent, navigable application so analysts, finance leaders, and transformation teams can review business-critical formulas without manually reverse-engineering large workbooks.
 
-## Why This Exists
+## Executive Summary
 
-Spreadsheet models accumulate logic over time:
+Spreadsheet models often become operational systems of record, yet their logic is difficult to audit, explain, and transfer. FormulaLens addresses that gap by turning `.xlsx` workbooks into an interactive experience that exposes formula dependencies, highlights top-level metrics, detects table structures, and generates both technical and executive-ready explanations.
 
-- Metrics are built through long formula chains
-- References jump across tabs and helper sheets
-- Audit and handoff become slow because the logic lives inside the workbook
+The result is a faster path to:
 
-This project turns that logic into a browsable application.
+- understand how key outputs are calculated
+- reduce time spent tracing formulas across sheets
+- improve auditability and knowledge transfer
+- support modernization and optimization efforts for spreadsheet-driven processes
 
-## Current Status
+## Business Value
 
-This repository now includes a working FormulaLens foundation with:
+FormulaLens is built for scenarios where spreadsheet complexity creates delivery, control, or continuity risk.
 
-- FastAPI backend for workbook upload, parsing, tracing, table detection, and metric discovery
-- Next.js frontend for upload, sheet browsing, tracing, and table analysis flows
-- SSE streaming support for long-running backend and AI responses
-- Configurable LLM proxy integration with a local mock mode for development
-- Smoke test coverage for the main workbook lifecycle
+### Typical use cases
 
-Still in progress:
+- **Executive review:** summarize how major KPIs and outputs are derived
+- **Finance and FP&A analysis:** inspect formula chains and validate model logic
+- **Audit and controls:** trace dependencies and surface calculation paths
+- **Handover and onboarding:** shorten the learning curve for inherited workbooks
+- **Transformation programs:** document spreadsheet logic before redesign or automation
 
-- Final production polish across all views
-- Full PRD parity for every backend edge case and UI state
-- Real LLM proxy credentials and live provider validation
-- Audio transcription support
-- Broader automated test coverage
+## Core Capabilities
 
-## Features
+### Workbook intelligence
 
-### Workbook ingestion
-
-- Upload `.xlsx` files
-- Persist uploads and registry metadata on disk
-- Restore previously uploaded files on server restart
-- Load both formula and computed-value workbook variants
-- Expose backend readiness and boot status for the frontend
+- Upload and retain `.xlsx` workbooks
+- Restore uploaded files after restart
+- Load formulas and computed values for analysis
+- Stream large sheet loads for better responsiveness
 
 ### Formula tracing
 
-- Trace dependencies downstream from any formula cell
-- Trace upstream usage with reverse reference lookup
-- Detect cross-sheet references
-- Detect circular references
-- Surface range references alongside direct cell references
+- Trace dependencies downstream from a selected cell
+- Trace upstream references to see where values are used
+- Identify cross-sheet links, ranges, and circular references
+- Surface top-level metrics not referenced by other formulas
 
-### Workbook analysis
+### Table and metric analysis
 
-- Stream sheet loading for larger workbooks
-- Detect table-like regions in sheets
-- Trace metrics within a selected table region
-- Discover top-level metrics that are not referenced by any other formula
+- Detect table-like regions within sheets
+- Trace metrics inside a selected table region
+- Review workbook structure through a browser-based interface
 
-### AI-assisted outputs
+### AI-assisted explanation
 
-- Technical explanations for analyst audiences
-- Business summaries for executive audiences
-- Formula blueprint generation
-- Formula snapshot generation
-- Batch explanation flows for metrics
-- Background task streaming and reconnection for long-running LLM outputs
-- Optimization analysis endpoint with structured result parsing
-- Local mock mode for development without live proxy access
+- Generate technical explanations for analyst audiences
+- Generate business summaries for executive audiences
+- Produce formula blueprints and snapshots
+- Stream long-running AI tasks with reconnection support
+- Run in mock mode when live LLM access is unavailable
 
-## Tech Stack
+## Platform Overview
 
-### Backend
+FormulaLens is delivered as a two-tier web application:
+
+- **Backend:** FastAPI services for upload, parsing, tracing, table detection, metrics, and AI task orchestration
+- **Frontend:** Next.js application for workbook upload, browsing, tracing, and analysis workflows
+
+### Technology stack
+
+**Backend**
 
 - Python 3.12+
 - FastAPI
@@ -76,24 +72,35 @@ Still in progress:
 - openpyxl
 - httpx
 
-### Frontend
+**Frontend**
 
 - Next.js 16
 - React 19
 - TypeScript
 - Tailwind CSS v4
-- React Flow (`@xyflow/react`)
+- React Flow
 - dagre
 - react-markdown
 
-### LLM integration
+**LLM integration**
 
-- OpenAI-compatible proxy path for Azure OpenAI
-- Bedrock-compatible proxy path for Claude-style requests
-- Environment-driven config
-- Mock fallback mode for local development
+- OpenAI-compatible proxy support
+- Bedrock-compatible proxy support
+- environment-driven configuration
+- local mock mode for development and demos
 
-## Project Structure
+## Current Maturity
+
+The repository contains a working product foundation with end-to-end workbook lifecycle support, formula tracing, metric discovery, table analysis, and AI-assisted explanation flows.
+
+Current priorities include:
+
+- additional production polish across the user experience
+- broader automated test coverage
+- full validation of live proxy-backed AI integrations
+- completion of remaining roadmap items such as audio transcription
+
+## Repository Structure
 
 ```text
 excel_formula/
@@ -128,15 +135,11 @@ This creates the Python virtual environment, installs backend dependencies, and 
 
 ### 2. Configure environment
 
-Copy the example config:
-
 ```bash
 cp app/.env.example app/.env
 ```
 
-At minimum, set values for your preferred development mode.
-
-For local development without a real LLM proxy, you can use:
+For local development without live LLM credentials, use:
 
 ```env
 EFT_RUNTIME=local
@@ -147,7 +150,7 @@ APP_NAME=formulalens
 AWS_REGION=us-east-1
 ```
 
-If you have a real proxy, configure one of:
+For proxy-backed AI access, configure either:
 
 ```env
 LLM_PROXY_HOST=your-proxy-host.example.com
@@ -155,7 +158,7 @@ LLM_PROXY_SCHEME=https
 EFT_PROXY_AUTH_TOKEN=Basic YOUR_TOKEN
 ```
 
-or explicit URLs:
+or explicit proxy URLs:
 
 ```env
 EFT_OPENAI_PROXY_URL=https://your-host.example.com/v1/proxy/azure-openai
@@ -165,23 +168,16 @@ EFT_PROXY_AUTH_TOKEN=Basic YOUR_TOKEN
 
 ## Running Locally
 
-The Makefile supports configurable ports.
-
-If port `8000` is already used on your machine, start the app like this:
-
-```bash
-make start BACKEND_PORT=8010 FRONTEND_PORT=3001 NEXT_PUBLIC_API_URL=http://localhost:8010
-```
-
 Default local ports:
 
 - Frontend: `http://localhost:3000`
 - Backend: `http://localhost:8000`
 
-Alternate ports used during development in this repo:
+If you need alternate ports:
 
-- Frontend: `http://localhost:3001`
-- Backend: `http://localhost:8010`
+```bash
+make start BACKEND_PORT=8010 FRONTEND_PORT=3001 NEXT_PUBLIC_API_URL=http://localhost:8010
+```
 
 To stop the local servers:
 
@@ -189,7 +185,7 @@ To stop the local servers:
 make stop
 ```
 
-## Testing
+## Validation
 
 Run the smoke test:
 
@@ -197,14 +193,17 @@ Run the smoke test:
 make test
 ```
 
-What it does:
+Optional frontend production build:
 
-- starts the backend in mock LLM mode
-- generates a real temporary workbook
-- uploads it through the API
-- validates sheet streaming, trace down, trace up, table detection, table trace, and top-metric endpoints
-- exercises AI endpoints in mock mode
-- deletes the uploaded workbook
+```bash
+cd app/frontend && npm run build
+```
+
+Optional backend import check:
+
+```bash
+.venv/bin/python -m py_compile app/config_loader.py app/llm_client.py app/backend/main.py
+```
 
 ## Key API Endpoints
 
@@ -244,52 +243,22 @@ What it does:
 - `POST /api/top-metrics/explain-all`
 - `POST /api/optimize`
 
-## Development Notes
+## Operational Notes
 
-### Mock LLM mode
-
-If `EFT_LLM_MODE=mock` is enabled, the UI and API can still exercise explanation flows without requiring live credentials. This is useful for front-end and API development when the real proxy is unavailable.
-
-### Upload persistence
-
-Uploaded workbooks are stored under:
-
-```text
-app/backend/uploads/
-```
-
-The registry is maintained in:
-
-```text
-app/backend/uploads/registry.json
-```
-
-### Build verification
-
-Frontend build:
-
-```bash
-cd app/frontend
-npm run build
-```
-
-Backend import check:
-
-```bash
-.venv/bin/python -m py_compile app/config_loader.py app/llm_client.py app/backend/main.py
-```
+- Uploaded workbooks are stored in `app/backend/uploads/`
+- Upload metadata is tracked in `app/backend/uploads/registry.json`
+- Mock LLM mode enables UI and API development without live credentials
 
 ## Roadmap
 
-- finish full PRD parity for workbook parsing and UI behavior
-- complete production-level polish across the trace and sheet views
-- validate live LLM proxy integration with real credentials
+- complete remaining production polish across major views
+- expand automated testing across backend and frontend flows
+- validate live LLM proxy integrations in production-like conditions
 - implement audio transcription support
-- expand automated testing for backend helpers and frontend flows
 
 ## Contributing
 
-This repository is currently being actively built. If you are iterating locally:
+This project is under active development. When contributing locally:
 
 - keep ports configurable
 - avoid destructive git operations
