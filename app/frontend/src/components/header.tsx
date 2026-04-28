@@ -18,7 +18,7 @@ export function AppHeader({
   backHref?: string;
 }) {
   return (
-    <header className="sticky top-0 z-50 border-b border-border-subtle/80 bg-white/85 backdrop-blur-xl">
+    <header className="sticky top-0 z-50 border-b border-[#eceae7] bg-white/88 backdrop-blur-2xl">
       <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-6 py-4">
         <div className="flex items-center gap-3">
           <div className="grid grid-cols-2 gap-1 rounded-xl border border-border-subtle bg-white p-2 shadow-sm">
@@ -27,9 +27,14 @@ export function AppHeader({
             <span className="h-2.5 w-2.5 rounded-full bg-violet" />
             <span className="h-2.5 w-2.5 rounded-full bg-blue" />
           </div>
-          <div>
-            <div className="font-medium tracking-tight"><span className="text-accent">Calc</span>Sense</div>
-            <div className="text-xs uppercase tracking-[0.22em] text-text-tertiary">AI Workbook Intelligence</div>
+          <div className="flex items-center gap-3">
+            <div>
+              <div className="font-medium tracking-tight"><span className="text-accent">Calc</span>Sense</div>
+              <div className="text-xs uppercase tracking-[0.22em] text-text-tertiary">AI Workbook Intelligence</div>
+            </div>
+            <span className="hidden rounded-full border border-border-subtle bg-white px-2.5 py-1 text-[10px] uppercase tracking-[0.18em] text-text-tertiary md:inline-flex">
+              v1.0 · Beta
+            </span>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -46,10 +51,10 @@ export function AppHeader({
           >
             Built by Gogul Kumar Mathi
           </a>
-          {filename ? <span className="font-mono-ui">{filename}</span> : null}
+          {filename ? <span className="hidden font-mono-ui md:inline-flex">{filename}</span> : null}
           {backHref ? <Link href={backHref} className="rounded-full border border-border-subtle px-3 py-2 hover:text-accent">Back to sheets</Link> : null}
           {downloadHref ? <a href={downloadHref} className="rounded-full border border-border-subtle px-3 py-2 hover:text-accent">Download</a> : null}
-          {fileId ? <Link href="/" className="text-accent hover:text-accent-dim">Start over</Link> : null}
+          {fileId ? <Link href="/" className="rounded-full bg-accent px-3 py-2 text-white hover:bg-accent-dim">New workbook</Link> : null}
         </div>
       </div>
     </header>

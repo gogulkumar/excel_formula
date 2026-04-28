@@ -7,22 +7,17 @@ import { AppHeader } from "@/components/header";
 import { deleteFileEntry, fetchBackendStatus, fetchRegistry, uploadFile } from "@/lib/api";
 import type { BackendStatus, FileEntry } from "@/lib/types";
 
-const FEATURE_STEPS = [
-  {
-    number: "01",
-    title: "Upload workbook",
-    body: "Bring in a live .xlsx model, preserve formulas and values, and get immediate workbook-ready context.",
-  },
-  {
-    number: "02",
-    title: "Trace dependencies",
-    body: "Follow every metric through cross-sheet references, helper tabs, ranges, and intermediate checkpoints.",
-  },
-  {
-    number: "03",
-    title: "Explain and edit",
-    body: "Generate analyst-grade explanations, ask workbook questions, insert charts, and apply Excel edits in place.",
-  },
+const PROBLEM_LINES = [
+  { kicker: "The workbook works.", line: "Nobody knows why." },
+  { kicker: "The number changed.", line: "Nobody knows where." },
+  { kicker: "Close is tomorrow.", line: "The model is still fragile." },
+  { kicker: "A formula broke.", line: "The owner already left." },
+  { kicker: "Tabs keep growing.", line: "Auditability keeps shrinking." },
+  { kicker: "You trust the output.", line: "You can’t trace the path." },
+  { kicker: "The board wants answers.", line: "The model gives cell refs." },
+  { kicker: "You need the logic.", line: "Not another screenshot." },
+  { kicker: "The assumption moved.", line: "Everything downstream shifted." },
+  { kicker: "Finance needs speed.", line: "Manual tracing kills it." },
 ];
 
 const STAGES = [
@@ -382,6 +377,7 @@ export default function HomePage() {
   const [isScanning, setIsScanning] = useState(false);
   const [showFileBrowser, setShowFileBrowser] = useState(false);
   const [scanFolderName, setScanFolderName] = useState("");
+  const supportsDirectoryBrowse = typeof window !== "undefined" && "showDirectoryPicker" in window;
 
   useEffect(() => {
     void fetchRegistry().then(setRecentFiles).catch(() => undefined);
@@ -463,7 +459,7 @@ export default function HomePage() {
 
   return (
     <main
-      className="min-h-screen bg-bg-deep"
+      className="h-screen overflow-hidden bg-bg-deep"
       onDragOver={(event) => {
         event.preventDefault();
         setIsDragging(true);
@@ -487,56 +483,48 @@ export default function HomePage() {
           </div>
         </div>
       ) : null}
-      <div className="mx-auto max-w-7xl px-6 pb-20 pt-10">
-        <section className="grid items-start gap-12 lg:grid-cols-[0.92fr_1.08fr]">
-          <div className="pt-4">
-            <div className="inline-flex rounded-full border border-border-subtle bg-white/90 px-4 py-2 text-sm text-text-secondary shadow-sm">
-              Built for workbook reviews, audit trails, model handoffs, and finance narratives
-            </div>
-            <div className="mt-7 flex items-center gap-3">
-              <span className="rounded-full bg-accent px-3 py-1 text-[11px] font-medium uppercase tracking-[0.22em] text-white">Step 1</span>
-              <span className="text-[11px] uppercase tracking-[0.24em] text-text-tertiary">Upload, trace, explain, optimize</span>
-            </div>
-            <h1 className="headline-highlight mt-5 max-w-3xl font-serif-display text-6xl leading-none tracking-tight lg:text-7xl">
-              See what&apos;s behind every number in your model
+      <div className="mx-auto flex h-[calc(100vh-73px)] max-w-7xl flex-col px-6 py-6">
+        <section className="grid min-h-0 flex-1 items-start gap-8 lg:grid-cols-[0.82fr_1.18fr]">
+          <div className="min-h-0 pt-2">
+            <div className="text-[11px] uppercase tracking-[0.26em] text-text-tertiary">Your entire model depends on this</div>
+            <h1 className="mt-4 max-w-3xl text-5xl font-semibold leading-[0.92] tracking-[-0.05em] xl:text-6xl">
+              How many formulas
+              <br />
+              <span className="text-accent">can you explain?</span>
             </h1>
-            <p className="mt-6 max-w-2xl text-lg leading-8 text-text-secondary">
-              Upload an Excel workbook to trace formulas down to their source values, visualize dependency chains, generate analyst-grade explanations, and make workbook-safe edits without leaving the browser.
+            <p className="mt-4 max-w-2xl text-[15px] leading-6 text-text-secondary">
+              CalcSense traces every formula, every hidden connection, and every dependency chain so finance teams can audit, explain, and edit workbook logic without opening Excel.
             </p>
-            <div className="mt-10 flex flex-wrap gap-4">
+            <div className="mt-6 flex flex-wrap items-center gap-3">
               <button className="rounded-2xl bg-accent px-6 py-4 text-white shadow-[0_14px_30px_rgba(15,118,110,0.22)] transition hover:-translate-y-0.5 hover:bg-accent-dim disabled:cursor-not-allowed disabled:opacity-60" onClick={() => inputRef.current?.click()} disabled={backendStatus ? !backendStatus.ready : false}>
-                Upload Workbook
+                Open Workbook
               </button>
+              <div className="min-w-[260px] flex-1 rounded-2xl border border-border-subtle bg-white/90 px-4 py-3 text-sm text-text-secondary shadow-sm lg:min-w-[220px]">{progress}</div>
+            </div>
+            {supportsDirectoryBrowse ? (
               <button
-                className="rounded-2xl border border-accent/30 bg-white px-6 py-4 text-accent shadow-sm transition hover:-translate-y-0.5 hover:border-accent hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
+                className="mt-3 text-sm text-accent transition hover:text-accent-dim disabled:cursor-not-allowed disabled:opacity-60"
                 onClick={handleBrowseFolder}
                 disabled={backendStatus ? !backendStatus.ready : false}
               >
-                <span className="flex items-center gap-2">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>
-                  Browse Files
-                </span>
+                Or scan a folder for Excel workbooks
               </button>
-              <div className="min-w-[280px] rounded-2xl border border-border-subtle bg-white/90 px-5 py-4 text-sm text-text-secondary shadow-sm">{progress}</div>
-            </div>
+            ) : null}
             {backendStatus && !backendStatus.ready ? (
-              <div className="mt-4 rounded-2xl border border-border-subtle bg-white/80 px-4 py-3 text-sm text-text-secondary">
+              <div className="mt-3 rounded-2xl border border-border-subtle bg-white/80 px-4 py-3 text-sm text-text-secondary">
                 {backendStatus.detail} ({backendStatus.files_loaded}/{backendStatus.files_total})
               </div>
             ) : null}
-            {error ? <div className="mt-4 rounded-2xl border border-rose bg-rose/5 px-4 py-3 text-sm text-rose">{error}</div> : null}
-            <div className="mt-10 grid gap-4">
-              {FEATURE_STEPS.map((step, index) => (
+            {error ? <div className="mt-3 rounded-2xl border border-rose bg-rose/5 px-4 py-3 text-sm text-rose">{error}</div> : null}
+            <div className="mt-5 grid gap-2 sm:grid-cols-2">
+              {PROBLEM_LINES.map((item, index) => (
                 <div
-                  key={step.number}
-                  className="animate-fade-in-up grid gap-3 rounded-[26px] border border-border-subtle bg-white/80 p-4 shadow-sm md:grid-cols-[68px_1fr]"
-                  style={{ animationDelay: `${index * 80}ms` }}
+                  key={item.line}
+                  className="animate-fade-in-up rounded-[18px] border border-[#eceae7] bg-white px-3.5 py-3"
+                  style={{ animationDelay: `${index * 50}ms` }}
                 >
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-bg-tint font-mono-ui text-sm text-accent">{step.number}</div>
-                  <div>
-                    <div className="text-base font-semibold tracking-tight">{step.title}</div>
-                    <p className="mt-1 text-sm leading-6 text-text-secondary">{step.body}</p>
-                  </div>
+                  <div className="text-[13px] font-medium leading-5 text-text-secondary">{item.kicker}</div>
+                  <div className="mt-1 text-lg font-semibold tracking-[-0.03em] text-text-primary">{item.line}</div>
                 </div>
               ))}
             </div>
@@ -551,7 +539,9 @@ export default function HomePage() {
               }}
             />
           </div>
-          <HeroDemo />
+          <div className="min-h-0">
+            <HeroDemo />
+          </div>
         </section>
 
         {/* ── File Browser Modal ── */}
@@ -612,39 +602,39 @@ export default function HomePage() {
           </div>
         ) : null}
 
-        <section className="mt-12 overflow-hidden rounded-[30px] border border-border-subtle bg-white/80 py-4 shadow-sm">
+        <section className="mt-4 overflow-hidden rounded-[22px] border border-[#efede9] bg-[#fcfbfa] py-3">
           <div className="ticker-track flex gap-3 whitespace-nowrap px-6">
             {[...capabilityStrip, ...capabilityStrip].map((item, index) => (
-              <div key={`${item}-${index}`} className="rounded-full border border-border-subtle bg-bg-elevated px-4 py-2 text-sm text-text-secondary">
+              <div key={`${item}-${index}`} className="rounded-full border border-[#e9e6e1] bg-white px-4 py-2 text-sm text-text-secondary">
                 {item}
               </div>
             ))}
           </div>
         </section>
 
-        <section className="mt-16">
-          <div className="mb-6 flex items-center justify-between">
+        <section className="mt-4 min-h-0">
+          <div className="mb-3 flex items-center justify-between">
             <div>
               <div className="text-[11px] uppercase tracking-[0.24em] text-text-tertiary">Workspace</div>
-              <h2 className="mt-2 text-2xl font-medium tracking-tight">Recent files</h2>
+              <h2 className="mt-1 text-lg font-medium tracking-tight">Recent files</h2>
             </div>
             <div className="rounded-full border border-border-subtle bg-white px-4 py-2 text-sm text-text-secondary">
               {recentFiles.length} workbook{recentFiles.length === 1 ? "" : "s"}
             </div>
           </div>
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {recentFiles.map((file, index) => (
-              <div key={file.file_id} className="animate-fade-in-up hover-lift rounded-[30px] border border-border-subtle bg-white/90 p-5 shadow-sm" style={{ animationDelay: `${index * 60}ms` }}>
+              <div key={file.file_id} className="animate-fade-in-up hover-lift rounded-[22px] border border-border-subtle bg-white/90 p-4 shadow-sm" style={{ animationDelay: `${index * 60}ms` }}>
                 <button className="w-full text-left" onClick={() => router.push(`/workbook/${file.file_id}`)}>
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="font-medium tracking-tight">{file.filename}</div>
-                      <div className="mt-2 text-sm text-text-secondary">{file.sheets.length} sheets ready for analysis</div>
+                      <div className="mt-1 text-sm text-text-secondary">{file.sheets.length} sheets ready for analysis</div>
                     </div>
                     <div className="rounded-full bg-bg-tint px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-accent">Open</div>
                   </div>
                 </button>
-                <div className="mt-4 flex flex-wrap gap-2">
+                <div className="mt-3 flex flex-wrap gap-2">
                   {file.sheets.slice(0, 3).map((sheet) => (
                     <span key={sheet} className="rounded-full border border-border-subtle bg-bg-deep px-3 py-1 text-xs text-text-secondary">
                       {sheet}
@@ -652,7 +642,7 @@ export default function HomePage() {
                   ))}
                 </div>
                 <button
-                  className="mt-5 rounded-full border border-border-subtle px-3 py-2 text-sm text-text-secondary transition hover:border-rose hover:text-rose"
+                  className="mt-4 rounded-full border border-border-subtle px-3 py-2 text-sm text-text-secondary transition hover:border-rose hover:text-rose"
                   onClick={async () => {
                     await deleteFileEntry(file.file_id);
                     setRecentFiles((current) => current.filter((item) => item.file_id !== file.file_id));

@@ -964,7 +964,7 @@ def _count_formula_cells(entry: dict[str, Any], sheet_name: str) -> int:
 def _build_workbook_overview_context(entry: dict[str, Any], fid: str, sheet: str = "", focus_cells: list[str] | None = None) -> str:
     focus_cells = [cell.upper() for cell in (focus_cells or []) if cell]
     selected_sheets = [sheet] if sheet and sheet in entry["wb_f"].sheetnames else entry["sheets"][:]
-    top_metrics = top_metrics(fid, sheets=",".join(selected_sheets), min_refs=2)["metrics"][:12]
+    top_metrics_list = top_metrics(fid, sheets=",".join(selected_sheets), min_refs=2)["metrics"][:12]
     lines = [
         f"Workbook: {entry['filename']}",
         f"Sheets ({len(entry['sheets'])}): {', '.join(entry['sheets'])}",
@@ -978,9 +978,9 @@ def _build_workbook_overview_context(entry: dict[str, Any], fid: str, sheet: str
         for table in tables[:3]:
             headers = ", ".join(table.get("headers", [])[:5]) or "no obvious headers"
             lines.append(f"  - Table {table['range']} | {table['rows']} rows x {table['cols']} cols | headers: {headers}")
-    if top_metrics:
+    if top_metrics_list:
         lines.extend(["", "Top metrics:"])
-        for metric in top_metrics:
+        for metric in top_metrics_list:
             lines.append(
                 f"- {metric['label']} ({metric['sheet']}!{metric['cell']}) = {metric['value']} | Formula: {metric['formula']}"
             )

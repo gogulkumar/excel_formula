@@ -23,11 +23,11 @@ function Swatch({
   return (
     <button
       onClick={onClick}
-      className="flex h-8 w-8 items-center justify-center rounded-lg border border-border-subtle transition hover:scale-110"
-      style={{ backgroundColor: color || "#fff" }}
+      className={`flex h-6 w-6 items-center justify-center rounded-full border transition-all hover:scale-110 hover:shadow-sm ${color ? "border-transparent hover:border-[#a19f9d]" : "border-[#e1dfdd] bg-white hover:bg-[#f3f2f1]"}`}
+      style={color ? { backgroundColor: color } : {}}
       title={color || "Clear"}
     >
-      {!color ? <span className="text-xs text-rose">/</span> : null}
+      {!color ? <div className="h-0.5 w-4 -rotate-45 bg-[#d13438]"></div> : null}
     </button>
   );
 }
@@ -46,41 +46,80 @@ export function FormatToolbar({
   const [numberFormat, setNumberFormat] = useState<string>("");
 
   return (
-    <div className="flex flex-wrap items-center gap-3 border-b border-border-subtle bg-white px-5 py-3">
-      <div className="flex items-center gap-2">
-        <button disabled={disabled} onClick={() => setBold((v) => (v === true ? null : true))} className={`rounded-xl border px-3 py-2 text-sm ${bold ? "border-accent bg-accent text-white" : "border-border-subtle bg-bg-elevated"}`}>B</button>
-        <button disabled={disabled} onClick={() => setItalic((v) => (v === true ? null : true))} className={`rounded-xl border px-3 py-2 text-sm italic ${italic ? "border-accent bg-accent text-white" : "border-border-subtle bg-bg-elevated"}`}>I</button>
-        <button disabled={disabled} onClick={() => { setFill(""); setFontColor(""); setBold(null); setItalic(null); setNumberFormat(""); }} className="rounded-xl border border-border-subtle px-3 py-2 text-sm text-text-secondary">Clear</button>
+    <div className="flex flex-wrap items-center gap-4 border-b border-[#e1dfdd] bg-[#fbfaf7] px-6 py-3">
+      {/* Font Styles */}
+      <div className="flex items-center gap-1">
+        <button
+          disabled={disabled}
+          onClick={() => setBold((v) => (v === true ? null : true))}
+          className={`flex h-8 w-8 items-center justify-center rounded-md text-sm font-bold transition-colors disabled:opacity-50 ${bold ? "bg-[#e1dfdd] text-black" : "text-[#605e5c] hover:bg-[#edebe9]"}`}
+          title="Bold"
+        >
+          B
+        </button>
+        <button
+          disabled={disabled}
+          onClick={() => setItalic((v) => (v === true ? null : true))}
+          className={`flex h-8 w-8 items-center justify-center rounded-md text-sm italic transition-colors disabled:opacity-50 ${italic ? "bg-[#e1dfdd] text-black" : "text-[#605e5c] hover:bg-[#edebe9]"}`}
+          title="Italic"
+        >
+          I
+        </button>
+        <button
+          disabled={disabled}
+          onClick={() => { setFill(""); setFontColor(""); setBold(null); setItalic(null); setNumberFormat(""); }}
+          className="ml-1 flex h-8 px-3 items-center justify-center rounded-md text-xs font-medium text-[#605e5c] hover:bg-[#edebe9] transition-colors disabled:opacity-50"
+          title="Clear Formatting"
+        >
+          Clear
+        </button>
       </div>
-      <div className="flex items-center gap-2">
-        <span className="text-xs uppercase tracking-[0.16em] text-text-tertiary">Fill</span>
-        <div className="grid grid-cols-3 gap-1 md:grid-cols-5">
+
+      <div className="h-5 w-px bg-[#e1dfdd]"></div>
+
+      {/* Fill Color */}
+      <div className="flex items-center gap-3">
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-[#a19f9d]">Fill</span>
+        <div className="flex flex-wrap items-center gap-1">
           {FILL_COLORS.map((color) => <Swatch key={color || "clear-fill"} color={color} onClick={() => setFill(color)} />)}
         </div>
       </div>
-      <div className="flex items-center gap-2">
-        <span className="text-xs uppercase tracking-[0.16em] text-text-tertiary">Font</span>
-        <div className="grid grid-cols-4 gap-1">
+
+      <div className="h-5 w-px bg-[#e1dfdd]"></div>
+
+      {/* Font Color */}
+      <div className="flex items-center gap-3">
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-[#a19f9d]">Text</span>
+        <div className="flex items-center gap-1">
           {FONT_COLORS.map((color) => <Swatch key={color || "clear-font"} color={color} onClick={() => setFontColor(color)} />)}
         </div>
       </div>
-      <select
-        disabled={disabled}
-        value={numberFormat}
-        onChange={(event) => setNumberFormat(event.target.value)}
-        className="rounded-xl border border-border-subtle bg-bg-elevated px-3 py-2 text-sm"
-      >
-        {NUMBER_FORMATS.map((item) => (
-          <option key={item.label} value={item.value}>{item.label}</option>
-        ))}
-      </select>
-      <button
-        disabled={disabled}
-        onClick={() => void onApply({ fill, font_color: fontColor, bold, italic, number_format: numberFormat })}
-        className="rounded-2xl bg-accent px-4 py-2 text-sm text-white disabled:opacity-50"
-      >
-        Apply format
-      </button>
+
+      <div className="h-5 w-px bg-[#e1dfdd]"></div>
+
+      {/* Number Format */}
+      <div className="flex items-center gap-3">
+        <select
+          disabled={disabled}
+          value={numberFormat}
+          onChange={(event) => setNumberFormat(event.target.value)}
+          className="h-8 rounded-md border border-[#e1dfdd] bg-white px-3 text-xs text-[#323130] outline-none transition-shadow hover:border-[#c8c6c4] focus:border-[#107c41] focus:ring-1 focus:ring-[#107c41] disabled:opacity-50"
+        >
+          {NUMBER_FORMATS.map((item) => (
+            <option key={item.label} value={item.value}>{item.label}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="ml-auto">
+        <button
+          disabled={disabled}
+          onClick={() => void onApply({ fill, font_color: fontColor, bold, italic, number_format: numberFormat })}
+          className="flex h-8 items-center rounded-md bg-[#107c41] px-4 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-[#0b5a2f] disabled:opacity-50"
+        >
+          Apply Format
+        </button>
+      </div>
     </div>
   );
 }

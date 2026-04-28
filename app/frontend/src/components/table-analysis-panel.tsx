@@ -14,13 +14,26 @@ export function TableAnalysisPanel({
   sheet,
   tables,
   onClose,
+  onSelectTable,
 }: {
   fileId: string;
   sheet: string;
   tables: TableRegion[];
   onClose: () => void;
+  onSelectTable?: (table: TableRegion | null) => void;
 }) {
-  const [selectedTable, setSelectedTable] = useState<TableRegion | null>(tables[0] || null);
+  const [selectedTable, setSelectedTableState] = useState<TableRegion | null>(tables[0] || null);
+
+  const setSelectedTable = (table: TableRegion | null) => {
+    setSelectedTableState(table);
+    if (onSelectTable) onSelectTable(table);
+  };
+
+  useEffect(() => {
+    if (onSelectTable) {
+      onSelectTable(tables[0] || null);
+    }
+  }, [tables, onSelectTable]);
   const [traceResult, setTraceResult] = useState<TableTraceResult | null>(null);
   const [selectedMetricIndex, setSelectedMetricIndex] = useState(0);
   const [view, setView] = useState<"tree" | "explain" | "table" | "optimize">("tree");
@@ -28,10 +41,37 @@ export function TableAnalysisPanel({
   const [businessSummary, setBusinessSummary] = useState("");
   const [reconstruction, setReconstruction] = useState("");
   const [snapshot, setSnapshot] = useState("");
+  const [explaining, setExplaining] = useState(false);
+  const [summarizing, setSummarizing] = useState(false);
+  const [reconstructing, setReconstructing] = useState(false);
+  const [snapshotting, setSnapshotting] = useState(false);
   useEffect(() => {
     if (!selectedTable) return;
     void fetchTableTrace(fileId, sheet, selectedTable.range).then(setTraceResult);
   }, [fileId, selectedTable, sheet]);
+
+  useEffect(() => {
+    setSelectedMetricIndex(0);
+    setExplanation("");
+    setBusinessSummary("");
+    setReconstruction("");
+    setSnapshot("");
+    setExplaining(false);
+    setSummarizing(false);
+    setReconstructing(false);
+    setSnapshotting(false);
+  }, [selectedTable]);
+
+  useEffect(() => {
+    setExplanation("");
+    setBusinessSummary("");
+    setReconstruction("");
+    setSnapshot("");
+    setExplaining(false);
+    setSummarizing(false);
+    setReconstructing(false);
+    setSnapshotting(false);
+  }, [selectedMetricIndex]);
 
   const metric = traceResult?.metrics[selectedMetricIndex] || null;
   const optimize = useOptimize(metric, sheet);
@@ -39,25 +79,45 @@ export function TableAnalysisPanel({
   async function handleExplain() {
     if (!metric?.cells[0]) return;
     setExplanation("");
-    await streamExplanation(metric.cells[0], (text) => setExplanation((current) => `${current}${text}`), undefined, { file_id: fileId, sheet: metric.cells[0].sheet, cell: metric.cells[0].cell }, true);
+    setExplaining(true);
+    try {
+      await streamExplanation(metric.cells[0], (text) => setExplanation((current) => `${current}${text}`), undefined, { file_id: fileId, sheet: metric.cells[0].sheet, cell: metric.cells[0].cell }, true);
+    } finally {
+      setExplaining(false);
+    }
   }
 
   async function handleBusiness() {
     if (!metric?.cells[0]) return;
     setBusinessSummary("");
-    await streamBusinessSummary(metric.cells[0], (text) => setBusinessSummary((current) => `${current}${text}`), undefined, { file_id: fileId, sheet: metric.cells[0].sheet, cell: metric.cells[0].cell }, true);
+    setSummarizing(true);
+    try {
+      await streamBusinessSummary(metric.cells[0], (text) => setBusinessSummary((current) => `${current}${text}`), undefined, { file_id: fileId, sheet: metric.cells[0].sheet, cell: metric.cells[0].cell }, true);
+    } finally {
+      setSummarizing(false);
+    }
   }
 
   async function handleReconstruct() {
     if (!metric?.cells[0]) return;
     setReconstruction("");
-    await streamReconstruction(metric.cells[0], (text) => setReconstruction((current) => `${current}${text}`), undefined, { file_id: fileId, sheet: metric.cells[0].sheet, cell: metric.cells[0].cell }, true);
+    setReconstructing(true);
+    try {
+      await streamReconstruction(metric.cells[0], (text) => setReconstruction((current) => `${current}${text}`), undefined, { file_id: fileId, sheet: metric.cells[0].sheet, cell: metric.cells[0].cell }, true);
+    } finally {
+      setReconstructing(false);
+    }
   }
 
   async function handleSnapshot() {
     if (!metric?.cells[0]) return;
     setSnapshot("");
-    await streamSnapshot(metric.cells[0], (text) => setSnapshot((current) => `${current}${text}`), undefined, { file_id: fileId, sheet: metric.cells[0].sheet, cell: metric.cells[0].cell }, true);
+    setSnapshotting(true);
+    try {
+      await streamSnapshot(metric.cells[0], (text) => setSnapshot((current) => `${current}${text}`), undefined, { file_id: fileId, sheet: metric.cells[0].sheet, cell: metric.cells[0].cell }, true);
+    } finally {
+      setSnapshotting(false);
+    }
   }
 
   return (
@@ -105,10 +165,10 @@ export function TableAnalysisPanel({
                 businessSummary={businessSummary}
                 reconstruction={reconstruction}
                 snapshot={snapshot}
-                explaining={false}
-                summarizing={false}
-                reconstructing={false}
-                snapshotting={false}
+                explaining={explaining}
+                summarizing={summarizing}
+                reconstructing={reconstructing}
+                snapshotting={snapshotting}
                 onExplain={handleExplain}
                 onBusinessSummary={handleBusiness}
                 onReconstruct={handleReconstruct}

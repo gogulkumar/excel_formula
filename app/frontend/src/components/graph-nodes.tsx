@@ -1,6 +1,6 @@
 "use client";
 
-import type { NodeProps } from "@xyflow/react";
+import { Handle, Position, type NodeProps } from "@xyflow/react";
 
 import type { RangeRef, TraceNode } from "@/lib/types";
 
@@ -34,6 +34,7 @@ export function TraceNodeComponent({ data }: NodeProps) {
   const description = data.description as string | undefined;
   return (
     <div className={`w-[280px] rounded-2xl border bg-white p-4 shadow-sm ${node.external ? "border-rose" : node.formula ? "border-accent" : "border-teal"}`}>
+      <Handle type="target" position={Position.Left} className="!border-border-subtle !bg-bg-elevated" />
       <div className="font-mono-ui text-xs text-text-secondary">{node.sheet}!{node.cell}</div>
       <div className="mt-2 text-sm font-semibold">{node.meta || description || "Formula node"}</div>
       <div className="mt-3 rounded-2xl bg-bg-elevated px-3 py-2 font-mono-ui text-sm text-text-primary">{node.formula || node.value || "Empty"}</div>
@@ -47,6 +48,7 @@ export function TraceNodeComponent({ data }: NodeProps) {
           ))}
         </div>
       ) : null}
+      <Handle type="source" position={Position.Right} className="!border-border-subtle !bg-bg-elevated" />
     </div>
   );
 }
@@ -55,8 +57,10 @@ export function RangeNodeComponent({ data }: NodeProps) {
   const range = data.range as RangeRef;
   return (
     <div className="w-[240px] rounded-2xl border border-violet bg-white p-4 shadow-sm">
+      <Handle type="target" position={Position.Left} className="!border-border-subtle !bg-bg-elevated" />
       <div className="font-mono-ui text-xs text-violet">{range.sheet}!{range.range}</div>
       <div className="mt-2 text-xs text-text-secondary">{(range.headers || []).join(" • ")}</div>
+      <Handle type="source" position={Position.Right} className="!border-border-subtle !bg-bg-elevated" />
     </div>
   );
 }
@@ -71,10 +75,11 @@ export function TreeNodeComponent({ data }: NodeProps) {
     node.external ? "Ext." :
     node.truncated ? "more" :
     direction === "up" ? "used by" :
-    direction === "selected" ? "selected" :
-    node.formula ? "formula" : "input";
+    direction === "selected" ? "SELECTED" :
+    node.formula ? "formula" : "INPUT";
   return (
     <div className={`w-[260px] rounded-[24px] border-2 ${color} bg-white p-4 shadow-sm`}>
+      <Handle type="target" position={Position.Top} className="!border-border-subtle !bg-bg-elevated" />
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="truncate text-sm font-semibold text-text-primary">{title}</div>
@@ -89,6 +94,7 @@ export function TreeNodeComponent({ data }: NodeProps) {
       {node.formula ? (
         <div className="mt-3 line-clamp-2 font-mono-ui text-[11px] text-text-tertiary">{node.formula}</div>
       ) : null}
+      <Handle type="source" position={Position.Bottom} className="!border-border-subtle !bg-bg-elevated" />
     </div>
   );
 }

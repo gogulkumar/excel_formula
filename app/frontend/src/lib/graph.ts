@@ -75,35 +75,54 @@ export function traceToGraph(root: TraceNode) {
 export function traceToTree(root: TraceNode, upTrace?: TraceNode) {
   const nodes: Node[] = [];
   const edges: Edge[] = [];
+  const seenNodes = new Set<string>();
+  const seenEdges = new Set<string>();
+
   const add = (node: TraceNode, direction: "selected" | "down" | "up") => {
     const id = `${direction}:${node.sheet}!${node.cell}`;
-    nodes.push({
-      id,
-      type: "treeNode",
-      data: { node, direction, description: describe(node) },
-      position: { x: 0, y: 0 },
-    });
-    return id;
+    let isNew = false;
+    if (!seenNodes.has(id)) {
+      isNew = true;
+      seenNodes.add(id);
+      nodes.push({
+        id,
+        type: "treeNode",
+        data: { node, direction, description: describe(node) },
+        position: { x: 0, y: 0 },
+      });
+    }
+    return { id, isNew };
   };
 
   const walkDown = (node: TraceNode, parentId?: string) => {
-    const id = add(node, parentId ? "down" : "selected");
+    const { id, isNew } = add(node, parentId ? "down" : "selected");
     if (parentId) {
-      edges.push({ id: `${parentId}->${id}`, source: parentId, target: id, style: { stroke: "#0F766E" } });
+      const edgeId = `${parentId}->${id}`;
+      if (!seenEdges.has(edgeId)) {
+        seenEdges.add(edgeId);
+        edges.push({ id: edgeId, source: parentId, target: id, type: "smoothstep", style: { stroke: "#0F766E", strokeWidth: 2 } });
+      }
     }
-    node.deps.forEach((dep) => walkDown(dep, id));
+    if (isNew) {
+      node.deps.forEach((dep) => walkDown(dep, id));
+    }
     return id;
   };
 
   const rootId = walkDown(root);
   const walkUp = (node: TraceNode, parentId: string) => {
     node.deps.forEach((dep) => {
-      const id = add(dep, "up");
-      edges.push({ id: `${id}->${parentId}`, source: id, target: parentId, style: { stroke: "#2563EB" } });
-      walkUp(dep, id);
+      const { id, isNew } = add(dep, "up");
+      const edgeId = `${id}->${parentId}`;
+      if (!seenEdges.has(edgeId)) {
+        seenEdges.add(edgeId);
+        edges.push({ id: edgeId, source: id, target: parentId, type: "smoothstep", style: { stroke: "#2563EB", strokeWidth: 2 } });
+      }
+      if (isNew) {
+        walkUp(dep, id);
+      }
     });
   };
   if (upTrace) walkUp(upTrace, rootId);
   return { nodes: layoutGraph(nodes, edges, "TB"), edges };
 }
-
