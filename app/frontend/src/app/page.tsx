@@ -7,18 +7,85 @@ import { AppHeader } from "@/components/header";
 import { deleteFileEntry, fetchBackendStatus, fetchRegistry, uploadFile } from "@/lib/api";
 import type { BackendStatus, FileEntry } from "@/lib/types";
 
-const PROBLEM_LINES = [
-  { kicker: "The workbook works.", line: "Nobody knows why." },
-  { kicker: "The number changed.", line: "Nobody knows where." },
-  { kicker: "Close is tomorrow.", line: "The model is still fragile." },
-  { kicker: "A formula broke.", line: "The owner already left." },
-  { kicker: "Tabs keep growing.", line: "Auditability keeps shrinking." },
-  { kicker: "You trust the output.", line: "You can’t trace the path." },
-  { kicker: "The board wants answers.", line: "The model gives cell refs." },
-  { kicker: "You need the logic.", line: "Not another screenshot." },
-  { kicker: "The assumption moved.", line: "Everything downstream shifted." },
-  { kicker: "Finance needs speed.", line: "Manual tracing kills it." },
-];
+const HERO_MESSAGES = [
+  {
+    eyebrow: "Your entire model depends on this",
+    titleTop: "How many formulas",
+    titleBottom: "can you explain?",
+    body:
+      "CalcSense traces every formula, every hidden connection, and every dependency chain so finance teams can audit, explain, and edit workbook logic without opening Excel.",
+  },
+  {
+    eyebrow: "The workbook works",
+    titleTop: "Nobody knows",
+    titleBottom: "why.",
+    body:
+      "Inherited models keep running long after the original builder leaves. CalcSense reconstructs the logic path so teams can understand what the workbook is actually doing.",
+  },
+  {
+    eyebrow: "The number changed",
+    titleTop: "Nobody knows",
+    titleBottom: "where.",
+    body:
+      "When a result moves, teams need the exact formula path and sheet-to-sheet dependencies behind it. CalcSense traces the shift back to the source.",
+  },
+  {
+    eyebrow: "Close is tomorrow",
+    titleTop: "The model is still",
+    titleBottom: "fragile.",
+    body:
+      "Month-end and forecast models break under time pressure. CalcSense surfaces the formulas, assumptions, and handoffs that matter before close gets blocked.",
+  },
+  {
+    eyebrow: "A formula broke",
+    titleTop: "The owner already",
+    titleBottom: "left.",
+    body:
+      "Business-critical spreadsheets often outlive the analyst who built them. CalcSense gives the next team an interpretable map instead of a black box.",
+  },
+  {
+    eyebrow: "Tabs keep growing",
+    titleTop: "Auditability keeps",
+    titleBottom: "shrinking.",
+    body:
+      "Large workbooks sprawl across tabs, helper blocks, and hidden dependencies. CalcSense condenses that sprawl into something teams can inspect and explain quickly.",
+  },
+  {
+    eyebrow: "You trust the output",
+    titleTop: "You can’t trace",
+    titleBottom: "the path.",
+    body:
+      "Results may look right while the supporting logic stays opaque. CalcSense follows the chain from output cell to base input so users can verify the reasoning.",
+  },
+  {
+    eyebrow: "The board wants answers",
+    titleTop: "The model gives",
+    titleBottom: "cell refs.",
+    body:
+      "Executives need clear business narratives, not spreadsheet shorthand. CalcSense translates workbook mechanics into technical explanations and executive summaries.",
+  },
+  {
+    eyebrow: "You need the logic",
+    titleTop: "Not another",
+    titleBottom: "screenshot.",
+    body:
+      "Static screenshots never explain formulas, dependencies, or context. CalcSense keeps the workbook live, searchable, and editable while it explains the logic.",
+  },
+  {
+    eyebrow: "The assumption moved",
+    titleTop: "Everything downstream",
+    titleBottom: "shifted.",
+    body:
+      "One changed driver can ripple across forecasts, bridges, and summaries. CalcSense shows the downstream impact chain before teams publish the wrong answer.",
+  },
+  {
+    eyebrow: "Finance needs speed",
+    titleTop: "Manual tracing",
+    titleBottom: "kills it.",
+    body:
+      "Analysts should not spend hours following formulas by hand. CalcSense compresses workbook analysis into a faster workflow for tracing, explaining, and editing.",
+  },
+] as const;
 
 const STAGES = [
   { key: "drop", label: "Drop", duration: 2400 },
@@ -377,7 +444,10 @@ export default function HomePage() {
   const [isScanning, setIsScanning] = useState(false);
   const [showFileBrowser, setShowFileBrowser] = useState(false);
   const [scanFolderName, setScanFolderName] = useState("");
-  const supportsDirectoryBrowse = typeof window !== "undefined" && "showDirectoryPicker" in window;
+  const [supportsDirectoryBrowse, setSupportsDirectoryBrowse] = useState(false);
+  const [heroIndex, setHeroIndex] = useState(0);
+  const [recentQuery, setRecentQuery] = useState("");
+  const [showAllRecentFiles, setShowAllRecentFiles] = useState(false);
 
   useEffect(() => {
     void fetchRegistry().then(setRecentFiles).catch(() => undefined);
@@ -396,6 +466,17 @@ export default function HomePage() {
     return () => {
       active = false;
     };
+  }, []);
+
+  useEffect(() => {
+    setSupportsDirectoryBrowse("showDirectoryPicker" in window);
+  }, []);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setHeroIndex((current) => (current + 1) % HERO_MESSAGES.length);
+    }, 3200);
+    return () => window.clearInterval(interval);
   }, []);
 
   async function handleFile(file: File) {
@@ -457,6 +538,16 @@ export default function HomePage() {
     [],
   );
 
+  const activeHero = HERO_MESSAGES[heroIndex];
+  const filteredRecentFiles = useMemo(() => {
+    const query = recentQuery.trim().toLowerCase();
+    if (!query) return recentFiles;
+    return recentFiles.filter((file) => {
+      if (file.filename.toLowerCase().includes(query)) return true;
+      return file.sheets.some((sheet) => sheet.toLowerCase().includes(query));
+    });
+  }, [recentFiles, recentQuery]);
+
   return (
     <main
       className="h-screen overflow-hidden bg-bg-deep"
@@ -483,18 +574,26 @@ export default function HomePage() {
           </div>
         </div>
       ) : null}
-      <div className="mx-auto flex h-[calc(100vh-73px)] max-w-7xl flex-col px-6 py-6">
-        <section className="grid min-h-0 flex-1 items-start gap-8 lg:grid-cols-[0.82fr_1.18fr]">
-          <div className="min-h-0 pt-2">
-            <div className="text-[11px] uppercase tracking-[0.26em] text-text-tertiary">Your entire model depends on this</div>
-            <h1 className="mt-4 max-w-3xl text-5xl font-semibold leading-[0.92] tracking-[-0.05em] xl:text-6xl">
-              How many formulas
-              <br />
-              <span className="text-accent">can you explain?</span>
-            </h1>
-            <p className="mt-4 max-w-2xl text-[15px] leading-6 text-text-secondary">
-              CalcSense traces every formula, every hidden connection, and every dependency chain so finance teams can audit, explain, and edit workbook logic without opening Excel.
-            </p>
+      <div className="mx-auto flex h-[calc(100vh-73px)] max-w-7xl flex-col px-6 py-5">
+        <section className="grid min-h-0 flex-1 items-stretch gap-6 lg:grid-cols-[0.82fr_1.18fr]">
+          <div className="flex h-full min-h-0 flex-col overflow-hidden pt-2">
+            <div className="min-h-[230px] lg:min-h-[250px] xl:min-h-[270px]">
+              <div className="text-[11px] uppercase tracking-[0.26em] text-text-tertiary">{activeHero.eyebrow}</div>
+              <h1
+                key={`hero-${heroIndex}`}
+                className="mt-4 max-w-3xl animate-fade-in-up text-5xl font-semibold leading-[0.92] tracking-[-0.05em] xl:text-6xl"
+              >
+                {activeHero.titleTop}
+                <br />
+                <span className="text-accent">{activeHero.titleBottom}</span>
+              </h1>
+              <p
+                key={`hero-body-${heroIndex}`}
+                className="mt-4 max-w-2xl animate-fade-in text-[15px] leading-6 text-text-secondary"
+              >
+                {activeHero.body}
+              </p>
+            </div>
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <button className="rounded-2xl bg-accent px-6 py-4 text-white shadow-[0_14px_30px_rgba(15,118,110,0.22)] transition hover:-translate-y-0.5 hover:bg-accent-dim disabled:cursor-not-allowed disabled:opacity-60" onClick={() => inputRef.current?.click()} disabled={backendStatus ? !backendStatus.ready : false}>
                 Open Workbook
@@ -516,17 +615,87 @@ export default function HomePage() {
               </div>
             ) : null}
             {error ? <div className="mt-3 rounded-2xl border border-rose bg-rose/5 px-4 py-3 text-sm text-rose">{error}</div> : null}
-            <div className="mt-5 grid gap-2 sm:grid-cols-2">
-              {PROBLEM_LINES.map((item, index) => (
-                <div
-                  key={item.line}
-                  className="animate-fade-in-up rounded-[18px] border border-[#eceae7] bg-white px-3.5 py-3"
-                  style={{ animationDelay: `${index * 50}ms` }}
-                >
-                  <div className="text-[13px] font-medium leading-5 text-text-secondary">{item.kicker}</div>
-                  <div className="mt-1 text-lg font-semibold tracking-[-0.03em] text-text-primary">{item.line}</div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {capabilityStrip.map((item) => (
+                <div key={item} className="rounded-full border border-[#e9e6e1] bg-white px-3 py-1.5 text-xs text-text-secondary">
+                  {item}
                 </div>
               ))}
+            </div>
+            <div className="mt-4 min-h-0 flex-1">
+              <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-[22px] border border-border-subtle bg-white/90 p-3 shadow-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-[11px] uppercase tracking-[0.24em] text-text-tertiary">Workspace</div>
+                    <h2 className="mt-1 text-base font-medium tracking-tight">Recent files</h2>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {recentFiles.length > 6 ? (
+                      <button
+                        className="rounded-full border border-border-subtle bg-white px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-text-secondary transition hover:border-accent hover:text-accent"
+                        onClick={() => setShowAllRecentFiles(true)}
+                      >
+                        View all
+                      </button>
+                    ) : null}
+                    <div className="rounded-full border border-border-subtle bg-bg-deep px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-text-secondary">
+                      {recentFiles.length} workbook{recentFiles.length === 1 ? "" : "s"}
+                    </div>
+                  </div>
+                </div>
+                {recentFiles.length > 0 ? (
+                  <div className="mt-2 min-h-0 flex-1 overflow-x-auto overflow-y-hidden pb-1">
+                    <div className="flex min-w-full items-stretch gap-2.5 pr-1 [scroll-snap-type:x_mandatory]">
+                    {filteredRecentFiles.map((file, index) => (
+                      <div
+                        key={file.file_id}
+                        className="animate-fade-in-up flex h-[94px] w-[430px] min-w-[430px] flex-none items-stretch gap-2.5 rounded-[16px] border border-border-subtle bg-bg-deep px-3 py-2.5 [scroll-snap-align:start]"
+                        style={{ animationDelay: `${index * 60}ms` }}
+                      >
+                        <button className="min-w-0 flex-1 text-left" onClick={() => router.push(`/workbook/${file.file_id}`)}>
+                          <div className="flex h-full flex-col justify-between">
+                            <div>
+                              <div className="overflow-x-auto whitespace-nowrap text-[14px] font-medium tracking-tight [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                                {file.filename}
+                              </div>
+                              <div className="mt-0.5 text-sm text-text-secondary">{file.sheets.length} sheets ready for analysis</div>
+                            </div>
+                            <div className="mt-2 flex flex-nowrap gap-1.5 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                              {file.sheets.slice(0, 3).map((sheet) => (
+                                <span key={sheet} className="whitespace-nowrap rounded-full border border-border-subtle bg-white px-2 py-0.5 text-[11px] text-text-secondary">
+                                  {sheet}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </button>
+                        <div className="flex w-[88px] flex-none flex-col items-end justify-between">
+                          <button
+                            className="rounded-full bg-bg-tint px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-accent transition hover:bg-accent hover:text-white"
+                            onClick={() => router.push(`/workbook/${file.file_id}`)}
+                          >
+                            Open
+                          </button>
+                          <button
+                            className="rounded-full border border-border-subtle px-3 py-0.5 text-[12px] text-text-secondary transition hover:border-rose hover:text-rose"
+                            onClick={async () => {
+                              await deleteFileEntry(file.file_id);
+                              setRecentFiles((current) => current.filter((item) => item.file_id !== file.file_id));
+                            }}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="mt-3 rounded-[18px] border border-dashed border-border-subtle bg-bg-deep px-4 py-4 text-sm text-text-secondary">
+                    Upload a workbook to start building a searchable analysis workspace.
+                  </div>
+                )}
+              </div>
             </div>
             <input
               ref={inputRef}
@@ -539,7 +708,7 @@ export default function HomePage() {
               }}
             />
           </div>
-          <div className="min-h-0">
+          <div className="h-full min-h-0">
             <HeroDemo />
           </div>
         </section>
@@ -602,58 +771,81 @@ export default function HomePage() {
           </div>
         ) : null}
 
-        <section className="mt-4 overflow-hidden rounded-[22px] border border-[#efede9] bg-[#fcfbfa] py-3">
-          <div className="ticker-track flex gap-3 whitespace-nowrap px-6">
-            {[...capabilityStrip, ...capabilityStrip].map((item, index) => (
-              <div key={`${item}-${index}`} className="rounded-full border border-[#e9e6e1] bg-white px-4 py-2 text-sm text-text-secondary">
-                {item}
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="mt-4 min-h-0">
-          <div className="mb-3 flex items-center justify-between">
-            <div>
-              <div className="text-[11px] uppercase tracking-[0.24em] text-text-tertiary">Workspace</div>
-              <h2 className="mt-1 text-lg font-medium tracking-tight">Recent files</h2>
-            </div>
-            <div className="rounded-full border border-border-subtle bg-white px-4 py-2 text-sm text-text-secondary">
-              {recentFiles.length} workbook{recentFiles.length === 1 ? "" : "s"}
-            </div>
-          </div>
-          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {recentFiles.map((file, index) => (
-              <div key={file.file_id} className="animate-fade-in-up hover-lift rounded-[22px] border border-border-subtle bg-white/90 p-4 shadow-sm" style={{ animationDelay: `${index * 60}ms` }}>
-                <button className="w-full text-left" onClick={() => router.push(`/workbook/${file.file_id}`)}>
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="font-medium tracking-tight">{file.filename}</div>
-                      <div className="mt-1 text-sm text-text-secondary">{file.sheets.length} sheets ready for analysis</div>
-                    </div>
-                    <div className="rounded-full bg-bg-tint px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-accent">Open</div>
-                  </div>
-                </button>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {file.sheets.slice(0, 3).map((sheet) => (
-                    <span key={sheet} className="rounded-full border border-border-subtle bg-bg-deep px-3 py-1 text-xs text-text-secondary">
-                      {sheet}
-                    </span>
-                  ))}
+        {showAllRecentFiles ? (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 backdrop-blur-sm" onClick={() => setShowAllRecentFiles(false)}>
+            <div className="mx-4 flex max-h-[78vh] w-full max-w-4xl flex-col overflow-hidden rounded-[30px] border border-border-subtle bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="text-[11px] uppercase tracking-[0.24em] text-text-tertiary">Workspace</div>
+                  <h3 className="mt-1 text-lg font-semibold tracking-tight">Recent files</h3>
                 </div>
                 <button
-                  className="mt-4 rounded-full border border-border-subtle px-3 py-2 text-sm text-text-secondary transition hover:border-rose hover:text-rose"
-                  onClick={async () => {
-                    await deleteFileEntry(file.file_id);
-                    setRecentFiles((current) => current.filter((item) => item.file_id !== file.file_id));
-                  }}
+                  onClick={() => setShowAllRecentFiles(false)}
+                  className="rounded-full border border-border-subtle p-2 text-text-secondary transition hover:border-accent hover:text-accent"
                 >
-                  Delete
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
                 </button>
               </div>
-            ))}
+              <div className="mt-4 flex items-center gap-3">
+                <input
+                  value={recentQuery}
+                  onChange={(e) => setRecentQuery(e.target.value)}
+                  placeholder="Search files or sheets"
+                  className="w-full rounded-2xl border border-border-subtle bg-bg-deep px-4 py-3 text-sm outline-none transition focus:border-accent"
+                />
+                <div className="rounded-full border border-border-subtle bg-bg-deep px-3 py-2 text-[11px] uppercase tracking-[0.18em] text-text-secondary">
+                  {filteredRecentFiles.length} result{filteredRecentFiles.length === 1 ? "" : "s"}
+                </div>
+              </div>
+              <div className="mt-4 min-h-0 flex-1 overflow-y-auto pr-1">
+                <div className="space-y-2">
+                  {filteredRecentFiles.map((file, index) => (
+                    <div
+                      key={file.file_id}
+                      className="animate-fade-in-up flex items-center gap-4 rounded-[20px] border border-border-subtle bg-bg-deep px-4 py-3"
+                      style={{ animationDelay: `${index * 40}ms` }}
+                    >
+                      <button className="min-w-0 flex-1 text-left" onClick={() => router.push(`/workbook/${file.file_id}`)}>
+                        <div className="truncate text-[15px] font-medium tracking-tight">{file.filename}</div>
+                        <div className="mt-1 text-sm text-text-secondary">{file.sheets.length} sheets ready for analysis</div>
+                        <div className="mt-2 flex flex-wrap gap-1.5">
+                          {file.sheets.slice(0, 5).map((sheet) => (
+                            <span key={sheet} className="rounded-full border border-border-subtle bg-white px-2.5 py-1 text-xs text-text-secondary">
+                              {sheet}
+                            </span>
+                          ))}
+                        </div>
+                      </button>
+                      <div className="flex flex-none items-center gap-2">
+                        <button
+                          className="rounded-full bg-bg-tint px-3 py-1.5 text-[11px] uppercase tracking-[0.18em] text-accent transition hover:bg-accent hover:text-white"
+                          onClick={() => router.push(`/workbook/${file.file_id}`)}
+                        >
+                          Open
+                        </button>
+                        <button
+                          className="rounded-full border border-border-subtle px-3 py-1.5 text-sm text-text-secondary transition hover:border-rose hover:text-rose"
+                          onClick={async () => {
+                            await deleteFileEntry(file.file_id);
+                            setRecentFiles((current) => current.filter((item) => item.file_id !== file.file_id));
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {filteredRecentFiles.length === 0 ? (
+                    <div className="rounded-[18px] border border-dashed border-border-subtle bg-bg-deep px-4 py-6 text-sm text-text-secondary">
+                      No recent files matched your search.
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </div>
           </div>
-        </section>
+        ) : null}
+
       </div>
     </main>
   );
