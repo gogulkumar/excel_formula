@@ -28,12 +28,21 @@ function splitSnapshot(snapshot: string) {
 }
 
 function CopyButton({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false);
   return (
     <button
-      onClick={() => void navigator.clipboard.writeText(value)}
-      className="rounded-full border border-border-subtle px-3 py-1 text-xs text-text-secondary transition hover:border-accent hover:text-accent"
+      onClick={() => {
+        void navigator.clipboard.writeText(value);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1800);
+      }}
+      className={`rounded-full border px-3 py-1 text-xs transition-all duration-200 ${
+        copied
+          ? "border-teal/30 bg-teal/10 text-teal"
+          : "border-border-subtle text-text-secondary hover:border-accent hover:text-accent"
+      }`}
     >
-      Copy
+      {copied ? "✓ Copied" : "Copy"}
     </button>
   );
 }
@@ -71,8 +80,8 @@ export function ExplainView({
   const snap = useMemo(() => splitSnapshot(snapshot), [snapshot]);
 
   return (
-    <div className="rounded-3xl border border-border-subtle bg-white">
-      <div className="flex flex-wrap gap-2 border-b border-border-subtle p-3">
+    <div className="flex flex-col overflow-hidden rounded-3xl border border-border-subtle bg-white" style={{ maxHeight: '100%' }}>
+      <div className="flex-none flex flex-wrap gap-2 border-b border-border-subtle p-3">
         {([
           ["technical", "Technical", "bg-accent"],
           ["business", "Business", "bg-teal"],
@@ -87,7 +96,7 @@ export function ExplainView({
           </button>
         ))}
       </div>
-      <div className="space-y-4 p-5">
+      <div className="flex-1 min-h-0 overflow-auto space-y-4 p-5">
         {(snapshot || snapshotting) && tab === "technical" ? (
           <div className="rounded-3xl border border-accent/15 bg-accent/5 p-4">
             <div className="mb-3 flex items-center justify-between">
@@ -107,7 +116,12 @@ export function ExplainView({
         ) : null}
 
         {tab === "technical" ? (
-          explanation ? (
+          explaining ? (
+            <div className="space-y-3">
+              <div className="animate-shimmer h-32 rounded-3xl" />
+              <div className="animate-shimmer h-48 rounded-3xl" />
+            </div>
+          ) : explanation ? (
             <div className="space-y-4">
               <section className="rounded-3xl border border-accent/15 bg-accent/5 p-5">
                 <div className="mb-3 flex items-center justify-between">
@@ -134,19 +148,27 @@ export function ExplainView({
               ) : null}
             </div>
           ) : (
-            <div className="flex flex-wrap gap-3">
-              <button className="rounded-2xl bg-accent px-5 py-3 text-white" onClick={onExplain} disabled={explaining}>
-                {explaining ? "Generating..." : "Technical Breakdown"}
-              </button>
-              <button className="rounded-2xl border border-border-subtle bg-white px-5 py-3 text-text-secondary" onClick={onSnapshot} disabled={snapshotting}>
-                {snapshotting ? "Generating..." : "Formula Snapshot"}
-              </button>
+            <div className="space-y-4">
+              <div className="rounded-3xl border-2 border-dashed border-accent/25 bg-accent/3 p-6 text-center">
+                <div className="text-sm font-medium text-text-secondary">Get an analyst-grade breakdown of this formula</div>
+                <div className="mt-1 text-xs text-text-tertiary">Traces every dependency and explains the logic in plain English</div>
+                <div className="mt-4 flex flex-wrap justify-center gap-3">
+                  <button className="rounded-2xl bg-accent px-5 py-2.5 text-sm text-white shadow-sm transition hover:opacity-90" onClick={onExplain}>
+                    Technical Breakdown
+                  </button>
+                  <button className="rounded-2xl border border-border-subtle bg-white px-5 py-2.5 text-sm text-text-secondary transition hover:border-accent hover:text-accent" onClick={onSnapshot}>
+                    Formula Snapshot
+                  </button>
+                </div>
+              </div>
             </div>
           )
         ) : null}
 
         {tab === "business" ? (
-          businessSummary ? (
+          summarizing ? (
+            <div className="animate-shimmer h-40 rounded-3xl" />
+          ) : businessSummary ? (
             <section className="rounded-3xl border border-teal/20 bg-teal/5 p-5">
               <div className="mb-3 flex items-center justify-between">
                 <div className="text-xs uppercase tracking-[0.2em] text-teal">Executive Summary</div>
@@ -155,14 +177,24 @@ export function ExplainView({
               <div className="prose prose-sm max-w-none"><ReactMarkdown>{businessSummary}</ReactMarkdown></div>
             </section>
           ) : (
-            <button className="rounded-2xl bg-teal px-5 py-3 text-white" onClick={onBusinessSummary} disabled={summarizing}>
-              {summarizing ? "Generating..." : "Business Summary"}
-            </button>
+            <div className="rounded-3xl border-2 border-dashed border-teal/25 bg-teal/3 p-6 text-center">
+              <div className="text-sm font-medium text-text-secondary">Plain-English business summary for executives</div>
+              <div className="mt-1 text-xs text-text-tertiary">No cell references — just what the metric means and why it matters</div>
+              <button className="mt-4 rounded-2xl bg-teal px-5 py-2.5 text-sm text-white shadow-sm transition hover:opacity-90" onClick={onBusinessSummary}>
+                Generate Business Summary
+              </button>
+            </div>
           )
         ) : null}
 
         {tab === "blueprint" ? (
-          reconstruction ? (
+          reconstructing ? (
+            <div className="space-y-3">
+              <div className="animate-shimmer h-24 rounded-3xl" />
+              <div className="animate-shimmer h-56 rounded-3xl" />
+              <div className="animate-shimmer h-32 rounded-3xl" />
+            </div>
+          ) : reconstruction ? (
             <div className="space-y-4">
               <section className="rounded-3xl border border-violet/20 bg-violet/5 p-5">
                 <div className="mb-3 flex items-center justify-between">
@@ -187,9 +219,13 @@ export function ExplainView({
               </section>
             </div>
           ) : (
-            <button className="rounded-2xl bg-violet px-5 py-3 text-white" onClick={onReconstruct} disabled={reconstructing}>
-              {reconstructing ? "Generating..." : "Formula Blueprint"}
-            </button>
+            <div className="rounded-3xl border-2 border-dashed border-violet/25 bg-violet/3 p-6 text-center">
+              <div className="text-sm font-medium text-text-secondary">Step-by-step formula reconstruction + optimization notes</div>
+              <div className="mt-1 text-xs text-text-tertiary">Shows data flow, rebuild steps, and where simplifications are possible</div>
+              <button className="mt-4 rounded-2xl bg-violet px-5 py-2.5 text-sm text-white shadow-sm transition hover:opacity-90" onClick={onReconstruct}>
+                Generate Blueprint
+              </button>
+            </div>
           )
         ) : null}
       </div>

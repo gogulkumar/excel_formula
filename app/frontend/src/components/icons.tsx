@@ -10,8 +10,8 @@ export function UploadIcon() {
   return (
     <svg width="52" height="52" viewBox="0 0 52 52" fill="none" aria-hidden="true">
       <rect x="5" y="9" width="42" height="34" rx="12" fill="#F2F1EE" />
-      <path d="M26 34V16" stroke="#0F766E" strokeWidth="3" strokeLinecap="round" />
-      <path d="M18 23L26 15L34 23" stroke="#0F766E" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M26 34V16" stroke="#f97316" strokeWidth="3" strokeLinecap="round" />
+      <path d="M18 23L26 15L34 23" stroke="#f97316" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M17 37H35" stroke="#7C3AED" strokeWidth="3" strokeLinecap="round" />
     </svg>
   );

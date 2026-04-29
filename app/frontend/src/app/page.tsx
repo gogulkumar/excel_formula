@@ -97,19 +97,17 @@ const STAGES = [
 
 function AIBadge() {
   return (
-    <div className="inline-flex items-center gap-2 rounded-full border border-accent/15 bg-white/80 px-4 py-2 text-sm shadow-sm">
-      <span className="animate-sparkle text-accent">✦</span>
-      <span className="bg-[linear-gradient(90deg,#0F766E_0%,#7C3AED_50%,#0F766E_100%)] bg-[length:200%_100%] bg-clip-text text-transparent animate-ai-shimmer-text">
-        AI Powered
-      </span>
+    <div className="inline-flex items-center gap-2 rounded-full border border-border-subtle bg-white px-3.5 py-1.5 text-[12px] font-medium text-text-secondary shadow-sm">
+      <span className="h-2 w-2 rounded-full bg-accent" />
+      <span>AI workbook intelligence</span>
     </div>
   );
 }
 
 function StageDrop() {
   return (
-    <div className="stage-enter relative h-[430px] overflow-hidden rounded-[36px] border border-border-subtle bg-white/90 p-5 shadow-[0_24px_80px_rgba(28,27,25,0.08)]">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(15,118,110,0.08),transparent_35%),radial-gradient(circle_at_80%_15%,rgba(124,58,237,0.08),transparent_30%),linear-gradient(180deg,#fff_0%,#f7f3ee_100%)]" />
+    <div className="stage-enter relative min-h-[360px] overflow-hidden rounded-[28px] border border-border-subtle bg-white/90 p-4 shadow-[0_24px_80px_rgba(28,27,25,0.08)] sm:min-h-[390px] sm:rounded-[32px] sm:p-5 xl:h-[430px] xl:rounded-[36px]">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(249,115,22,0.07),transparent_35%),radial-gradient(circle_at_80%_15%,rgba(124,58,237,0.06),transparent_30%),linear-gradient(180deg,#fff_0%,#fef9f5_100%)]" />
       <div className="relative flex h-full flex-col">
         <div className="flex items-center justify-between">
           <div>
@@ -120,27 +118,27 @@ function StageDrop() {
             Stage 1
           </div>
         </div>
-        <div className="relative mt-8 flex-1 overflow-hidden rounded-[30px] border border-dashed border-accent/35 bg-[linear-gradient(180deg,rgba(15,118,110,0.04),rgba(124,58,237,0.02))] p-6">
+        <div className="relative mt-6 flex-1 overflow-hidden rounded-[24px] border border-dashed border-border-medium bg-[linear-gradient(180deg,#ffffff_0%,#fbfaf8_100%)] p-4 sm:mt-8 sm:rounded-[30px] sm:p-6">
           <div className="absolute inset-0 bg-[linear-gradient(transparent_95%,rgba(208,206,201,0.55)_95%),linear-gradient(90deg,transparent_95%,rgba(208,206,201,0.55)_95%)] bg-[size:44px_44px] opacity-50" />
-          <div className="zone-flash absolute inset-8 rounded-[24px] border border-accent/25" />
+          <div className="zone-flash absolute inset-8 rounded-[24px] border border-border-medium/70" />
           <div className="ripple-1 absolute left-1/2 top-[63%] h-18 w-18 -translate-x-1/2 -translate-y-1/2 rounded-full border border-accent/25" />
           <div className="ripple-2 absolute left-1/2 top-[63%] h-18 w-18 -translate-x-1/2 -translate-y-1/2 rounded-full border border-accent/20" />
           <div className="ghost-drop absolute left-[18%] top-[16%] rounded-2xl border border-border-subtle bg-white px-4 py-3 font-mono-ui text-xs shadow-lg">
             FY24_Operating_Model.xlsx
           </div>
           <div className="cursor-fly absolute left-[12%] top-[14%] text-xl">⌁</div>
-          <div className="confirm-rise absolute left-1/2 top-[64%] -translate-x-1/2 rounded-full bg-accent px-4 py-2 text-[11px] uppercase tracking-[0.18em] text-white shadow-lg">
-            Upload queued
+          <div className="confirm-rise absolute left-1/2 top-[64%] -translate-x-1/2 rounded-full border border-border-subtle bg-white px-4 py-2 text-[11px] uppercase tracking-[0.18em] text-text-primary shadow-lg">
+            Workbook indexed
           </div>
           <div className="relative flex h-full items-end justify-between">
-            <div className="max-w-[260px] rounded-[24px] bg-white/90 p-5 shadow-sm">
+            <div className="max-w-[260px] rounded-[20px] border border-border-subtle bg-white/90 p-5 shadow-sm">
               <div className="eyebrow">Workbook intake</div>
               <div className="mt-2 text-sm leading-6 text-text-secondary">
                 Bring in structured Excel models with formulas, assumptions, helper tabs, and reporting sheets intact.
               </div>
             </div>
-            <div className="upload-invite rounded-[24px] border border-accent/20 bg-white px-5 py-4 text-sm font-medium text-accent shadow-sm">
-              Drop workbook here
+            <div className="upload-invite rounded-[20px] border border-border-subtle bg-white px-5 py-4 text-sm font-medium text-text-primary shadow-sm">
+              Secure workbook upload
             </div>
           </div>
         </div>
@@ -151,7 +149,7 @@ function StageDrop() {
 
 function StageScan() {
   return (
-    <div className="stage-enter relative h-[430px] overflow-hidden rounded-[36px] border border-border-subtle bg-white/90 p-5 shadow-[0_24px_80px_rgba(28,27,25,0.08)]">
+    <div className="stage-enter relative min-h-[360px] overflow-hidden rounded-[28px] border border-border-subtle bg-white/90 p-4 shadow-[0_24px_80px_rgba(28,27,25,0.08)] sm:min-h-[390px] sm:rounded-[32px] sm:p-5 xl:h-[430px] xl:rounded-[36px]">
       <div className="flex items-center justify-between">
         <div>
           <div className="eyebrow">Scanning workbook</div>
@@ -159,8 +157,8 @@ function StageScan() {
         </div>
         <div className="rounded-full bg-bg-tint px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-accent">Stage 2</div>
       </div>
-      <div className="relative mt-8 flex flex-col overflow-hidden rounded-xl border border-[#d4d4d4] bg-white shadow-sm font-sans">
-        <div className="scan-sweep absolute inset-y-0 left-0 z-20 w-24 bg-[linear-gradient(90deg,transparent,rgba(15,118,110,0.18),transparent)] pointer-events-none" />
+      <div className="relative mt-6 flex flex-col overflow-hidden rounded-xl border border-[#d4d4d4] bg-white shadow-sm font-sans sm:mt-8">
+        <div className="scan-sweep absolute inset-y-0 left-0 z-20 w-24 bg-[linear-gradient(90deg,transparent,rgba(249,115,22,0.16),transparent)] pointer-events-none" />
         
         {/* Fake Formula Bar */}
         <div className="flex items-center gap-2 border-b border-[#d4d4d4] bg-[#f9f9f9] px-2 py-1.5 text-xs text-text-secondary">
@@ -217,12 +215,12 @@ function StageScan() {
                       key={`${rowIndex}-${colIndex}`}
                       className={`relative flex-1 border-b border-r border-[#e1dfdd] px-2 py-1.5 text-xs truncate ${
                         isHeader ? "font-semibold bg-white" : 
-                        isFormula ? "font-mono-ui text-[#0a5e56]" : "bg-white"
-                      } ${isSelected ? "ring-2 ring-inset ring-[#107c41] bg-[#f2fcf6] z-10" : ""}`}
+                        isFormula ? "font-mono-ui text-[#c2410c]" : "bg-white"
+                      } ${isSelected ? "ring-2 ring-inset ring-[#f97316] bg-[#fff7ed] z-10" : ""}`}
                     >
                       {value}
                       {/* Active cell outline handle */}
-                      {isSelected && <div className="absolute -bottom-1 -right-1 w-2 h-2 bg-[#107c41] border border-white" />}
+                      {isSelected && <div className="absolute -bottom-1 -right-1 w-2 h-2 bg-[#f97316] border border-white" />}
                     </div>
                   );
                 })}
@@ -254,7 +252,7 @@ function StageTree() {
     { id: "5", label: "Operating costs", x: "58%", y: "64%" },
   ];
   return (
-    <div className="stage-enter relative h-[430px] overflow-hidden rounded-[36px] border border-border-subtle bg-white/90 p-5 shadow-[0_24px_80px_rgba(28,27,25,0.08)]">
+    <div className="stage-enter relative min-h-[360px] overflow-hidden rounded-[28px] border border-border-subtle bg-white/90 p-4 shadow-[0_24px_80px_rgba(28,27,25,0.08)] sm:min-h-[390px] sm:rounded-[32px] sm:p-5 xl:h-[430px] xl:rounded-[36px]">
       <div className="flex items-center justify-between">
         <div>
           <div className="eyebrow">Tracing</div>
@@ -262,10 +260,10 @@ function StageTree() {
         </div>
         <div className="rounded-full bg-bg-tint px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-accent">Stage 3</div>
       </div>
-      <div className="relative mt-8 h-[320px] overflow-hidden rounded-[30px] border border-border-subtle bg-[linear-gradient(180deg,#f4faf8_0%,#eef5f3_100%)]">
+      <div className="relative mt-6 h-[250px] overflow-hidden rounded-[24px] border border-border-subtle bg-[linear-gradient(180deg,#f4faf8_0%,#eef5f3_100%)] sm:mt-8 sm:h-[320px] sm:rounded-[30px]">
         <svg className="absolute inset-0 h-full w-full" viewBox="0 0 700 360" fill="none">
-          <path d="M350 58 L350 118 L180 118 L180 160" stroke="#0F766E" strokeWidth="2.5" />
-          <path d="M350 58 L350 118 L515 118 L515 160" stroke="#0F766E" strokeWidth="2.5" />
+          <path d="M350 58 L350 118 L180 118 L180 160" stroke="#f97316" strokeWidth="2.5" />
+          <path d="M350 58 L350 118 L515 118 L515 160" stroke="#f97316" strokeWidth="2.5" />
           <path d="M180 204 L180 242 L110 242 L110 278" stroke="#2563EB" strokeWidth="2.5" opacity="0.55" />
           <path d="M515 204 L515 242 L515 242 L515 278" stroke="#7C3AED" strokeWidth="2.5" opacity="0.55" />
         </svg>
@@ -285,7 +283,7 @@ function StageTree() {
 
 function StageExplain() {
   return (
-    <div className="stage-enter relative h-[430px] overflow-hidden rounded-[36px] border border-border-subtle bg-white/90 p-5 shadow-[0_24px_80px_rgba(28,27,25,0.08)]">
+    <div className="stage-enter relative min-h-[360px] overflow-hidden rounded-[28px] border border-border-subtle bg-white/90 p-4 shadow-[0_24px_80px_rgba(28,27,25,0.08)] sm:min-h-[390px] sm:rounded-[32px] sm:p-5 xl:h-[430px] xl:rounded-[36px]">
       <div className="flex items-center justify-between">
         <div>
           <div className="eyebrow">Explanation</div>
@@ -293,7 +291,7 @@ function StageExplain() {
         </div>
         <div className="rounded-full bg-bg-tint px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-accent">Stage 4</div>
       </div>
-      <div className="mt-8 grid gap-4 xl:grid-cols-[1.08fr_0.92fr]">
+      <div className="mt-6 grid gap-4 lg:mt-8 lg:grid-cols-[1.08fr_0.92fr]">
         <div className="rounded-[30px] border border-accent/15 bg-accent/5 p-5">
           <div className="eyebrow text-accent">Technical view</div>
           <div className="mt-4 space-y-3 text-sm text-text-secondary">
@@ -317,7 +315,7 @@ function StageExplain() {
 
 function StageChat() {
   return (
-    <div className="stage-enter relative h-[430px] overflow-hidden rounded-[36px] border border-border-subtle bg-white/90 p-5 shadow-[0_24px_80px_rgba(28,27,25,0.08)]">
+    <div className="stage-enter relative min-h-[360px] overflow-hidden rounded-[28px] border border-border-subtle bg-white/90 p-4 shadow-[0_24px_80px_rgba(28,27,25,0.08)] sm:min-h-[390px] sm:rounded-[32px] sm:p-5 xl:h-[430px] xl:rounded-[36px]">
       <div className="flex items-center justify-between">
         <div>
           <div className="eyebrow">Workbook chat</div>
@@ -325,7 +323,7 @@ function StageChat() {
         </div>
         <div className="rounded-full bg-bg-tint px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-accent">Stage 5</div>
       </div>
-      <div className="mt-8 grid gap-4 xl:grid-cols-[1fr_240px]">
+      <div className="mt-6 grid gap-4 lg:mt-8 lg:grid-cols-[1fr_240px]">
         <div className="space-y-3">
           <div className="rounded-[24px] border border-border-subtle bg-white px-4 py-3 shadow-sm">
             <div className="text-xs uppercase tracking-[0.18em] text-text-tertiary">You</div>
@@ -343,7 +341,7 @@ function StageChat() {
           <div className="mt-4 flex items-end gap-3">
             {[62, 71, 78, 84].map((height, index) => (
               <div key={height} className="flex flex-1 flex-col items-center gap-2">
-                <div className="chart-bar-grow w-full rounded-t-xl bg-[linear-gradient(180deg,#0F766E,#2563EB)]" style={{ height: `${height}px`, animationDelay: `${index * 120}ms` }} />
+                <div className="chart-bar-grow w-full rounded-t-xl bg-[linear-gradient(180deg,#f97316,#ea580c)]" style={{ height: `${height}px`, animationDelay: `${index * 120}ms` }} />
                 <div className="text-[11px] uppercase tracking-[0.12em] text-text-tertiary">Q{index + 1}</div>
               </div>
             ))}
@@ -370,26 +368,26 @@ function HeroDemo() {
   const active = STAGES[stageIndex];
 
   return (
-    <div className="relative overflow-hidden rounded-[42px] border border-white/70 bg-white/95 p-4 shadow-[0_32px_90px_rgba(34,32,28,0.08)] lg:p-6">
+    <div className="relative overflow-hidden rounded-[26px] border border-border-subtle bg-white/95 p-4 shadow-[0_28px_80px_rgba(34,32,28,0.06)] sm:rounded-[32px] lg:h-full lg:rounded-[36px] lg:p-6">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         <div className="animate-aurora-1 absolute -left-24 top-4 h-56 w-56 rounded-full bg-accent/10 blur-3xl" />
         <div className="animate-aurora-2 absolute bottom-8 right-0 h-64 w-64 rounded-full bg-violet/10 blur-3xl" />
       </div>
       <div className="relative mb-5 flex items-center justify-between">
         <AIBadge />
-        <div className="rounded-full border border-border-subtle bg-white/80 px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-text-secondary">
+        <div className="rounded-full border border-border-subtle bg-white px-3 py-1 text-[11px] uppercase tracking-[0.18em] text-text-secondary">
           Auto demo
         </div>
       </div>
-      <div className="mb-4 flex items-center gap-2">
+      <div className="mb-4 flex flex-wrap items-center gap-2">
         {STAGES.map((stage, index) => (
-          <div key={stage.key} className={`rounded-full px-3 py-1 text-[11px] uppercase tracking-[0.18em] ${stageIndex === index ? "bg-accent text-white" : "bg-bg-elevated text-text-secondary"}`}>
+          <div key={stage.key} className={`rounded-full border px-3 py-1 text-[11px] uppercase tracking-[0.18em] ${stageIndex === index ? "border-accent bg-accent/8 text-accent" : "border-border-subtle bg-white text-text-secondary"}`}>
             {stage.label}
           </div>
         ))}
       </div>
       <div className="mb-5 h-1.5 overflow-hidden rounded-full bg-bg-elevated">
-        <div className="stage-progress-bar h-full rounded-full bg-[linear-gradient(90deg,#0F766E,#2563EB,#7C3AED)]" key={active.key} style={{ ["--stage-duration" as never]: `${active.duration}ms` }} />
+        <div className="stage-progress-bar h-full rounded-full bg-[linear-gradient(90deg,#f97316,#ea580c,#7C3AED)]" key={active.key} style={{ ["--stage-duration" as never]: `${active.duration}ms` }} />
       </div>
       {active.key === "drop" ? <StageDrop /> : null}
       {active.key === "scan" ? <StageScan /> : null}
@@ -550,7 +548,7 @@ export default function HomePage() {
 
   return (
     <main
-      className="h-screen overflow-hidden bg-bg-deep"
+      className="min-h-screen overflow-x-hidden bg-bg-deep lg:h-screen lg:overflow-hidden"
       onDragOver={(event) => {
         event.preventDefault();
         setIsDragging(true);
@@ -574,14 +572,14 @@ export default function HomePage() {
           </div>
         </div>
       ) : null}
-      <div className="mx-auto flex h-[calc(100vh-73px)] max-w-7xl flex-col px-6 py-5">
-        <section className="grid min-h-0 flex-1 items-stretch gap-6 lg:grid-cols-[0.82fr_1.18fr]">
-          <div className="flex h-full min-h-0 flex-col overflow-hidden pt-2">
-            <div className="min-h-[230px] lg:min-h-[250px] xl:min-h-[270px]">
+      <div className="mx-auto flex min-h-[calc(100dvh-73px)] max-w-7xl flex-col px-4 py-4 sm:px-6 sm:py-5 lg:h-[calc(100dvh-73px)]">
+        <section className="grid min-h-0 flex-1 items-stretch gap-5 lg:grid-cols-[0.88fr_1.12fr] lg:gap-6">
+          <div className="flex min-h-0 flex-col overflow-hidden pt-1 sm:pt-2">
+            <div className="min-h-[200px] sm:min-h-[220px] lg:min-h-[250px] xl:min-h-[270px]">
               <div className="text-[11px] uppercase tracking-[0.26em] text-text-tertiary">{activeHero.eyebrow}</div>
               <h1
                 key={`hero-${heroIndex}`}
-                className="mt-4 max-w-3xl animate-fade-in-up text-5xl font-semibold leading-[0.92] tracking-[-0.05em] xl:text-6xl"
+                className="mt-3 max-w-3xl animate-fade-in-up text-[clamp(2.6rem,7vw,4.5rem)] font-semibold leading-[0.92] tracking-[-0.05em] sm:mt-4"
               >
                 {activeHero.titleTop}
                 <br />
@@ -589,16 +587,16 @@ export default function HomePage() {
               </h1>
               <p
                 key={`hero-body-${heroIndex}`}
-                className="mt-4 max-w-2xl animate-fade-in text-[15px] leading-6 text-text-secondary"
+                className="mt-3 max-w-2xl animate-fade-in text-sm leading-6 text-text-secondary sm:mt-4 sm:text-[15px]"
               >
                 {activeHero.body}
               </p>
             </div>
-            <div className="mt-6 flex flex-wrap items-center gap-3">
-              <button className="rounded-2xl bg-accent px-6 py-4 text-white shadow-[0_14px_30px_rgba(15,118,110,0.22)] transition hover:-translate-y-0.5 hover:bg-accent-dim disabled:cursor-not-allowed disabled:opacity-60" onClick={() => inputRef.current?.click()} disabled={backendStatus ? !backendStatus.ready : false}>
+            <div className="mt-4 flex flex-col gap-3 sm:mt-6 sm:flex-row sm:flex-wrap sm:items-center">
+              <button className="rounded-2xl bg-text-primary px-5 py-3.5 text-white shadow-[0_14px_30px_rgba(28,27,25,0.16)] transition hover:-translate-y-0.5 hover:bg-[#2a2926] disabled:cursor-not-allowed disabled:opacity-60 sm:px-6 sm:py-4" onClick={() => inputRef.current?.click()} disabled={backendStatus ? !backendStatus.ready : false}>
                 Open Workbook
               </button>
-              <div className="min-w-[260px] flex-1 rounded-2xl border border-border-subtle bg-white/90 px-4 py-3 text-sm text-text-secondary shadow-sm lg:min-w-[220px]">{progress}</div>
+              <div className="min-w-0 flex-1 rounded-2xl border border-border-subtle bg-white/90 px-4 py-3 text-sm text-text-secondary shadow-sm sm:min-w-[220px]">{progress}</div>
             </div>
             {supportsDirectoryBrowse ? (
               <button
@@ -617,7 +615,7 @@ export default function HomePage() {
             {error ? <div className="mt-3 rounded-2xl border border-rose bg-rose/5 px-4 py-3 text-sm text-rose">{error}</div> : null}
             <div className="mt-4 flex flex-wrap gap-2">
               {capabilityStrip.map((item) => (
-                <div key={item} className="rounded-full border border-[#e9e6e1] bg-white px-3 py-1.5 text-xs text-text-secondary">
+                <div key={item} className="rounded-full border border-border-subtle bg-white px-3 py-1.5 text-xs text-text-secondary">
                   {item}
                 </div>
               ))}
@@ -649,7 +647,7 @@ export default function HomePage() {
                     {filteredRecentFiles.map((file, index) => (
                       <div
                         key={file.file_id}
-                        className="animate-fade-in-up flex h-[94px] w-[430px] min-w-[430px] flex-none items-stretch gap-2.5 rounded-[16px] border border-border-subtle bg-bg-deep px-3 py-2.5 [scroll-snap-align:start]"
+                        className="animate-fade-in-up flex h-[94px] w-[300px] min-w-[300px] flex-none items-stretch gap-2.5 rounded-[16px] border border-border-subtle bg-bg-deep px-3 py-2.5 [scroll-snap-align:start] sm:w-[360px] sm:min-w-[360px] xl:w-[430px] xl:min-w-[430px]"
                         style={{ animationDelay: `${index * 60}ms` }}
                       >
                         <button className="min-w-0 flex-1 text-left" onClick={() => router.push(`/workbook/${file.file_id}`)}>
@@ -708,7 +706,7 @@ export default function HomePage() {
               }}
             />
           </div>
-          <div className="h-full min-h-0">
+          <div className="min-h-0 lg:h-full">
             <HeroDemo />
           </div>
         </section>

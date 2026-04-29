@@ -63,7 +63,7 @@ export function traceToGraph(root: TraceNode) {
         id: `${id}->${depId}`,
         source: id,
         target: depId,
-        style: { stroke: "#0F766E" },
+        style: { stroke: "#f97316" },
       });
       walk(dep);
     });
@@ -79,7 +79,7 @@ export function traceToTree(root: TraceNode, upTrace?: TraceNode) {
   const seenEdges = new Set<string>();
 
   const add = (node: TraceNode, direction: "selected" | "down" | "up") => {
-    const id = `${direction}:${node.sheet}!${node.cell}`;
+    const id = `${node.sheet}!${node.cell}`;
     let isNew = false;
     if (!seenNodes.has(id)) {
       isNew = true;
@@ -100,7 +100,7 @@ export function traceToTree(root: TraceNode, upTrace?: TraceNode) {
       const edgeId = `${parentId}->${id}`;
       if (!seenEdges.has(edgeId)) {
         seenEdges.add(edgeId);
-        edges.push({ id: edgeId, source: parentId, target: id, type: "smoothstep", style: { stroke: "#0F766E", strokeWidth: 2 } });
+        edges.push({ id: edgeId, source: parentId, target: id, type: "smoothstep", style: { stroke: "#f97316", strokeWidth: 2 } });
       }
     }
     if (isNew) {

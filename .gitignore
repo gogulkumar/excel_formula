@@ -2,10 +2,12 @@
 __pycache__/
 *.pyc
 app/.env
+app/frontend/.env
 app/frontend/.env.local
 app/secrets.json
 secrets.json
 app/backend/uploads/
 app/frontend/.next/
 app/frontend/node_modules/
+app/frontend/tsconfig.tsbuildinfo
 dist/

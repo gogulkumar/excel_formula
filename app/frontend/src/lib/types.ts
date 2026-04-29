@@ -78,6 +78,15 @@ export interface TableRegion {
   has_header: boolean;
   preview: string[][];
   user_modified?: boolean;
+  preferences?: {
+    metric_axis?: "row" | "column";
+    selected_metric_label?: string;
+    overrides?: Array<{
+      scope: "row" | "column";
+      target: string;
+      kind: "metric" | "numeric";
+    }>;
+  };
 }
 
 export interface TableMetric {

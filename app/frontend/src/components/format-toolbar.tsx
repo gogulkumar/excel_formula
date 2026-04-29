@@ -103,7 +103,7 @@ export function FormatToolbar({
           disabled={disabled}
           value={numberFormat}
           onChange={(event) => setNumberFormat(event.target.value)}
-          className="h-8 rounded-md border border-[#e1dfdd] bg-white px-3 text-xs text-[#323130] outline-none transition-shadow hover:border-[#c8c6c4] focus:border-[#107c41] focus:ring-1 focus:ring-[#107c41] disabled:opacity-50"
+          className="h-8 rounded-md border border-[#e1dfdd] bg-white px-3 text-xs text-[#323130] outline-none transition-shadow hover:border-[#c8c6c4] focus:border-[#f97316] focus:ring-1 focus:ring-[#f97316]/30 disabled:opacity-50"
         >
           {NUMBER_FORMATS.map((item) => (
             <option key={item.label} value={item.value}>{item.label}</option>
@@ -115,7 +115,7 @@ export function FormatToolbar({
         <button
           disabled={disabled}
           onClick={() => void onApply({ fill, font_color: fontColor, bold, italic, number_format: numberFormat })}
-          className="flex h-8 items-center rounded-md bg-[#107c41] px-4 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-[#0b5a2f] disabled:opacity-50"
+          className="flex h-8 items-center rounded-md bg-accent px-4 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-accent-dim disabled:opacity-50"
         >
           Apply Format
         </button>

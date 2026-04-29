@@ -164,18 +164,29 @@ async function startTaskAndStream(
   onText: (text: string) => void,
   onError?: (error: string) => void,
 ) {
-  const started = await readJson<TaskStartResponse>(`${API}${endpoint}`, {
+  const res = await fetch(`${API}${endpoint}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
+
+  // New Next.js API routes stream SSE directly
+  if (res.headers.get("content-type")?.startsWith("text/event-stream")) {
+    await parseSse(res, (event) => {
+      if (event.text) onText(String(event.text));
+      if (event.error) onError?.(String(event.error));
+    });
+    return { cached: false, taskId: null as string | null };
+  }
+
+  // Legacy Python backend: returns {task_id} or {cached, text}
+  if (!res.ok) throw new Error(await res.text());
+  const started = (await res.json()) as TaskStartResponse;
   if (started.cached && started.text) {
     onText(started.text);
     return { cached: true, taskId: null as string | null };
   }
-  if (!started.task_id) {
-    throw new Error("Task did not start");
-  }
+  if (!started.task_id) throw new Error("Task did not start");
   await connectToTaskStream(started.task_id, 0, (event) => {
     if (event.text) onText(String(event.text));
     if (event.error) onError?.(String(event.error));

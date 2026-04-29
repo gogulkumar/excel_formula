@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 
 import {
@@ -18,6 +18,20 @@ type Message = {
   role: "user" | "assistant";
   text: string;
 };
+
+function ErrorToast({ error, onDismiss }: { error: string; onDismiss: () => void }) {
+  useEffect(() => {
+    const id = setTimeout(onDismiss, 5000);
+    return () => clearTimeout(id);
+  }, [error, onDismiss]);
+  return (
+    <div className="flex items-start gap-3 rounded-2xl border border-rose/20 bg-rose/5 px-4 py-3 text-sm text-rose animate-fade-in">
+      <span className="mt-0.5 text-base leading-none">⚠</span>
+      <span className="flex-1">{error}</span>
+      <button onClick={onDismiss} className="ml-auto text-rose/50 transition hover:text-rose">✕</button>
+    </div>
+  );
+}
 
 type StatusStep = {
   text: string;
@@ -478,8 +492,8 @@ export function ChatPanel({
   const parsed = lastAssistant ? parseMessageBlocks(lastAssistant.text) : null;
 
   return (
-    <aside className="animate-slide-in-right flex h-full flex-col rounded-[32px] border border-border-subtle bg-white">
-      <div className="border-b border-border-subtle p-5">
+    <aside className="animate-slide-in-right flex h-full min-h-0 flex-col overflow-hidden rounded-[32px] border border-border-subtle bg-white">
+      <div className="flex-none overflow-y-auto border-b border-border-subtle p-5" style={{ maxHeight: '40%' }}>
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="text-xs uppercase tracking-[0.24em] text-text-tertiary">Workbook Chat</div>
@@ -549,11 +563,9 @@ export function ChatPanel({
           </button>
         </div>
       </div>
-      <div className="flex-1 space-y-4 overflow-auto p-5">
+      <div className="flex-1 min-h-0 space-y-4 overflow-auto p-5">
         {error ? (
-          <div className="rounded-2xl border border-rose/20 bg-rose-glow px-4 py-3 text-sm text-rose">
-            {error}
-          </div>
+          <ErrorToast error={error} onDismiss={() => setError("")} />
         ) : null}
         {!messages.length ? (
           <div className="rounded-3xl border border-border-subtle bg-bg-elevated p-5">

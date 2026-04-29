@@ -26,15 +26,15 @@ export function TableView({ metrics }: { metrics: TableMetric[] }) {
   }, [metrics]);
 
   return (
-    <div className="overflow-hidden rounded-3xl border border-border-subtle bg-white">
-      <div className="grid grid-cols-4 gap-0 border-b border-border-subtle bg-bg-elevated px-4 py-3 text-xs uppercase tracking-[0.2em] text-text-tertiary">
+    <div className="overflow-auto rounded-3xl border border-border-subtle bg-white">
+      <div className="grid min-w-[920px] grid-cols-4 gap-0 border-b border-border-subtle bg-bg-elevated px-4 py-3 text-xs uppercase tracking-[0.2em] text-text-tertiary">
         <div>Metric</div>
         <div>Value</div>
         <div>Formula lineage</div>
         <div>Explanation</div>
       </div>
       {metrics.map((metric, index) => (
-        <div key={`${metric.label}-${index}`} className="grid grid-cols-4 gap-0 border-b border-border-subtle px-4 py-4 text-sm">
+        <div key={`${metric.label}-${index}`} className="grid min-w-[920px] grid-cols-4 gap-0 border-b border-border-subtle px-4 py-4 text-sm">
           <div>
             <div className="font-medium">{metric.label}</div>
             <div className="mt-1 font-mono-ui text-xs text-text-secondary">{metric.cells[0]?.sheet}!{metric.cells[0]?.cell}</div>
@@ -47,4 +47,3 @@ export function TableView({ metrics }: { metrics: TableMetric[] }) {
     </div>
   );
 }
-

@@ -1,8 +1,4 @@
-"""CalcSense LLM Client — LangChain-based model abstraction.
-
-Provides a unified interface for OpenAI and Anthropic/Bedrock models
-using LangChain's ChatOpenAI / ChatAnthropic.
-"""
+"""CalcSense LLM Client — OpenAI-first LangChain model abstraction."""
 
 from __future__ import annotations
 
@@ -22,9 +18,9 @@ UsageDict = dict[str, int | str]
 class LLMClient:
     """LangChain-based LLM client for CalcSense.
 
-    Resolves the right model (OpenAI or Anthropic) from environment
-    configuration and provides both sync invoke and streaming generator
-    interfaces compatible with the existing chain and route architecture.
+    The active product path is OpenAI-compatible only. Legacy Claude-style
+    helper methods remain as compatibility wrappers but resolve through the
+    OpenAI client so the rest of the app stays on a single provider path.
     """
 
     def __init__(
@@ -47,11 +43,7 @@ class LLMClient:
             path_key="EFT_OPENAI_PROXY_PATH",
             default_path="/v1/proxy/azure-openai",
         )
-        self.bedrock_url = self._resolve_endpoint(
-            exact_key="EFT_BEDROCK_PROXY_URL",
-            path_key="EFT_BEDROCK_PROXY_PATH",
-            default_path="/v1/proxy/bedrock",
-        )
+        self.bedrock_url = ""
         self.api_key = self._resolve_api_key()
         self.authorization = self._resolve_authorization()
 
@@ -124,33 +116,18 @@ class LLMClient:
 
     def get_anthropic_model(
         self,
-        model: str = "claude-3-5-sonnet-20241022",
+        model: str = "gpt-4.1-2025-04-14",
         temperature: float = 0.1,
         max_tokens: int = 3000,
         streaming: bool = False,
     ) -> BaseChatModel:
-        """Return a ChatAnthropic model."""
-        from langchain_anthropic import ChatAnthropic
-
-        anthropic_key = get_config_value("ANTHROPIC_API_KEY") or ""
-        kwargs: dict[str, Any] = {
-            "model": model,
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-            "streaming": streaming,
-            "timeout": self.timeout,
-        }
-        if anthropic_key and not anthropic_key.startswith("your-"):
-            kwargs["api_key"] = anthropic_key
-        elif self.bedrock_url:
-            kwargs["base_url"] = self.bedrock_url
-            kwargs["api_key"] = "proxy"
-            kwargs["default_headers"] = {
-                "Authorization": self.authorization,
-                "x-client-app": self.app_name,
-            }
-
-        return ChatAnthropic(**kwargs)
+        """Compatibility wrapper that resolves to the OpenAI model path."""
+        return self.get_openai_model(
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            streaming=streaming,
+        )
 
     # ─── Call / Stream Methods ───────────────────────────────────────────
 
@@ -226,18 +203,13 @@ class LLMClient:
         max_tokens: int = 3000,
         temperature: float = 0.1,
     ) -> UsageDict:
-        lc_model = self.get_anthropic_model(model=model, temperature=temperature, max_tokens=max_tokens)
-        lc_messages = self._messages_to_langchain(messages, system_prompt)
-        result = lc_model.invoke(lc_messages)
-
-        text = result.content if isinstance(result.content, str) else str(result.content)
-        usage = getattr(result, "usage_metadata", None) or {}
-        return {
-            "response_text": text,
-            "input_tokens": getattr(usage, "input_tokens", 0) if usage else 0,
-            "output_tokens": getattr(usage, "output_tokens", 0) if usage else 0,
-            "total_tokens": getattr(usage, "total_tokens", 0) if usage else 0,
-        }
+        return self.call_openai(
+            model=model,
+            messages=messages,
+            system_prompt=system_prompt,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
 
     def stream_claude(
         self,
@@ -247,17 +219,13 @@ class LLMClient:
         max_tokens: int = 3000,
         temperature: float = 0.1,
     ) -> Generator[str | UsageDict, None, None]:
-        lc_model = self.get_anthropic_model(model=model, temperature=temperature, max_tokens=max_tokens, streaming=True)
-        lc_messages = self._messages_to_langchain(messages, system_prompt)
-
-        full_text = ""
-        for chunk in lc_model.stream(lc_messages):
-            token = chunk.content if isinstance(chunk.content, str) else str(chunk.content)
-            if token:
-                full_text += token
-                yield token
-
-        yield {"response_text": full_text, "input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+        yield from self.stream_openai(
+            model=model,
+            messages=messages,
+            system_prompt=system_prompt,
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
 
     def transcribe_audio(
         self,

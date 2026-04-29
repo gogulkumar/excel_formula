@@ -2,25 +2,25 @@
 @import "@xyflow/react/dist/style.css";
 
 :root {
-  --bg-deep: #f9f8f6;
+  --bg-deep: #fafaf9;
   --bg-surface: #ffffff;
-  --bg-elevated: #f2f1ee;
-  --bg-hover: #ebeae7;
-  --bg-tint: #eef5f2;
-  --border-subtle: #e5e3df;
-  --border-medium: #d0cec9;
-  --text-primary: #1c1b19;
-  --text-secondary: #5c5b57;
-  --text-tertiary: #9c9b96;
-  --accent: #0f766e;
-  --accent-dim: #0d6c65;
-  --accent-glow: rgba(15, 118, 110, 0.07);
-  --accent-glow-strong: rgba(15, 118, 110, 0.14);
-  --teal: #059669;
-  --teal-dim: #047857;
-  --teal-glow: rgba(5, 150, 105, 0.07);
-  --rose: #b91c1c;
-  --rose-glow: rgba(185, 28, 28, 0.06);
+  --bg-elevated: #f5f4f1;
+  --bg-hover: #edebe8;
+  --bg-tint: #fff7ed;
+  --border-subtle: #e8e5e1;
+  --border-medium: #d4d0cb;
+  --text-primary: #1a1917;
+  --text-secondary: #57534e;
+  --text-tertiary: #a8a29e;
+  --accent: #f97316;
+  --accent-dim: #ea580c;
+  --accent-glow: rgba(249, 115, 22, 0.09);
+  --accent-glow-strong: rgba(249, 115, 22, 0.18);
+  --teal: #0d9488;
+  --teal-dim: #0f766e;
+  --teal-glow: rgba(13, 148, 136, 0.07);
+  --rose: #e11d48;
+  --rose-glow: rgba(225, 29, 72, 0.06);
   --violet: #7c3aed;
   --violet-glow: rgba(124, 58, 237, 0.06);
   --blue: #2563eb;
@@ -181,8 +181,8 @@ body {
 }
 
 @keyframes zoneFlash {
-  0%, 100% { opacity: 0.15; box-shadow: 0 0 0 rgba(15, 118, 110, 0.12); }
-  35% { opacity: 0.65; box-shadow: 0 0 32px rgba(15, 118, 110, 0.18); }
+  0%, 100% { opacity: 0.15; box-shadow: 0 0 0 rgba(249, 115, 22, 0.12); }
+  35% { opacity: 0.65; box-shadow: 0 0 32px rgba(249, 115, 22, 0.22); }
 }
 
 @keyframes confirmRise {
@@ -218,8 +218,8 @@ body {
 }
 
 @keyframes uploadInvite {
-  0%, 100% { box-shadow: 0 0 0 rgba(15, 118, 110, 0); }
-  50% { box-shadow: 0 0 24px rgba(15, 118, 110, 0.16); }
+  0%, 100% { box-shadow: 0 0 0 rgba(249, 115, 22, 0); }
+  50% { box-shadow: 0 0 28px rgba(249, 115, 22, 0.22); }
 }
 
 @keyframes tickerTrack {
@@ -268,7 +268,7 @@ body {
   bottom: -10px;
   height: 10px;
   width: min(220px, 45%);
-  background: linear-gradient(90deg, rgba(15, 118, 110, 0.2), rgba(124, 58, 237, 0.14));
+  background: linear-gradient(90deg, rgba(249, 115, 22, 0.22), rgba(124, 58, 237, 0.14));
   border-radius: 999px;
   animation: slideUp 1.4s ease-out 0.6s both;
 }

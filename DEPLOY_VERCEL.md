@@ -30,7 +30,16 @@ Official Vercel guidance recommends persistent object or database storage for wr
   - Fly.io
   - ECS / Kubernetes
   - VM / container host
-- Point the frontend at the backend with:
+- Recommended Vercel setup:
+  - do **not** expose the backend URL directly in the browser unless you want to
+  - set a server-side rewrite target in Vercel:
+
+```env
+BACKEND_PROXY_URL=https://your-backend.example.com
+```
+
+- The frontend will then call the Vercel app itself at `/backend/...`, and Next.js will proxy those requests to your backend.
+- If you prefer direct browser-to-backend calls instead, you can still set:
 
 ```env
 NEXT_PUBLIC_API_URL=https://your-backend.example.com
@@ -52,13 +61,68 @@ Set the project root to:
 app/frontend
 ```
 
-Environment variable:
+Environment variables for Vercel:
+
+```env
+BACKEND_PROXY_URL=https://your-backend.example.com
+```
+
+Optional alternative:
 
 ```env
 NEXT_PUBLIC_API_URL=https://your-backend.example.com
 ```
 
+### How the proxy mode works
+
+- Leave `NEXT_PUBLIC_API_URL` unset in Vercel
+- Set `BACKEND_PROXY_URL`
+- The frontend uses `/backend` as its API base
+- `next.config.ts` rewrites `/backend/:path*` to your backend host
+
+This keeps the browser talking to the Vercel frontend origin while the frontend forwards requests to FastAPI.
+
+### Exact Vercel setup
+
+Recommended:
+
+- Root Directory: `app/frontend`
+- Framework Preset: `Next.js`
+- Production Environment Variable:
+  - `BACKEND_PROXY_URL=https://your-backend.example.com`
+
+Optional direct-call mode:
+
+- `NEXT_PUBLIC_API_URL=https://your-backend.example.com`
+
+Do not set both unless you intentionally want `NEXT_PUBLIC_API_URL` to override proxy mode.
+
 ## Backend deployment checklist
+
+Minimum backend environment variables:
+
+```env
+EFT_RUNTIME=local
+EFT_API_ENV=test
+EFT_LLM_MODE=live
+OPENAI_API_KEY=YOUR_OPENAI_API_KEY
+AWS_REGION=us-east-1
+APP_NAME=calcsense
+WHISPER_MODEL_SIZE=small
+CALCSENSE_CORS_ORIGINS=https://your-frontend.vercel.app
+CALCSENSE_TRUSTED_HOSTS=your-backend.example.com
+CALCSENSE_LOG_LEVEL=INFO
+CALCSENSE_USE_LIBREOFFICE_RECALC=false
+```
+
+Optional backend variables:
+
+```env
+OPENAI_BASE_URL=https://your-openai-compatible-endpoint.example.com/v1
+LIBREOFFICE_BIN=/path/to/soffice
+```
+
+Operational checklist:
 
 - set `CALCSENSE_CORS_ORIGINS` to your Vercel frontend URL
 - set `CALCSENSE_TRUSTED_HOSTS` to your backend hostname

@@ -6,6 +6,7 @@ import logging
 import os
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 import threading
@@ -400,6 +401,52 @@ def _reload_file_from_disk(fid: str) -> None:
         "sheets": wb_f.sheetnames,
     }
     _build_ref_index(fid, force=True)
+
+
+def _libreoffice_recalc_enabled() -> bool:
+    value = (get_config_value("CALCSENSE_USE_LIBREOFFICE_RECALC") or "").strip().lower()
+    return value in {"1", "true", "yes", "on"}
+
+
+def _recalculate_workbook_with_libreoffice(path: Path) -> bool:
+    if not _libreoffice_recalc_enabled():
+        return False
+    binary = (
+        get_config_value("LIBREOFFICE_BIN")
+        or shutil.which("soffice")
+        or shutil.which("libreoffice")
+    )
+    if not binary:
+        logger.warning("LibreOffice recalculation enabled but no soffice binary was found")
+        return False
+
+    with tempfile.TemporaryDirectory(prefix="calcsense-recalc-") as tmp_dir:
+        tmp_dir_path = Path(tmp_dir)
+        tmp_input = tmp_dir_path / path.name
+        shutil.copy2(path, tmp_input)
+        command = [
+            binary,
+            "--headless",
+            "--convert-to",
+            "xlsx",
+            "--outdir",
+            str(tmp_dir_path),
+            str(tmp_input),
+        ]
+        try:
+            completed = subprocess.run(command, capture_output=True, text=True, timeout=180, check=True)
+        except Exception as exc:
+            logger.warning("LibreOffice recalculation failed for %s: %s", path, exc)
+            return False
+
+        recalculated = tmp_dir_path / path.name
+        if not recalculated.exists():
+            logger.warning("LibreOffice recalculation did not produce %s. stdout=%s stderr=%s", recalculated, completed.stdout, completed.stderr)
+            return False
+
+        shutil.copy2(recalculated, path)
+        logger.info("LibreOffice recalculation refreshed workbook values for %s", path.name)
+        return True
 
 
 def _file_or_404(fid: str) -> dict[str, Any]:
@@ -1284,6 +1331,7 @@ async def upload(file: UploadFile = File(...)):
         path = folder / filename
         path.write_bytes(raw)
         try:
+            _recalculate_workbook_with_libreoffice(path)
             wb_f = load_workbook(path, data_only=False)
             yield _sse({"progress": f"Found {len(wb_f.sheetnames)} sheets — reading values..."})
             wb_v = load_workbook(path, data_only=True)
@@ -1369,6 +1417,8 @@ def get_sheet_stream(fid: str, sheet: str):
 def reload_workbook(fid: str, sheet: str | None = None) -> dict[str, Any]:
     lock = _get_file_lock(fid)
     with lock:
+        entry = _file_or_404(fid)
+        _recalculate_workbook_with_libreoffice(Path(entry["path"]))
         _reload_file_from_disk(fid)
         cleared = _clear_file_caches(fid, sheet)
     _log_event("workbook_reloaded", file_id=fid, sheet=sheet, cleared=cleared)
@@ -1772,6 +1822,7 @@ def edit_cells(req: EditCellsReq) -> dict[str, Any]:
                 ws_v[coord] = edit.value
                 results.append({"cell": coord, "status": "value"})
         entry["wb_f"].save(entry["path"])
+        _recalculate_workbook_with_libreoffice(Path(entry["path"]))
         _reload_file_from_disk(req.file_id)
         _clear_file_caches(req.file_id, req.sheet)
     _log_event("cells_edited", file_id=req.file_id, sheet=req.sheet, edit_count=len(req.edits))
@@ -1811,6 +1862,7 @@ def format_cells(req: FormatCellsReq) -> dict[str, Any]:
                 if req.format.number_format is not None:
                     cell.number_format = "General" if req.format.number_format == "" else req.format.number_format
         entry["wb_f"].save(entry["path"])
+        _recalculate_workbook_with_libreoffice(Path(entry["path"]))
         _reload_file_from_disk(req.file_id)
         _clear_file_caches(req.file_id, req.sheet)
     _log_event("cells_formatted", file_id=req.file_id, sheet=req.sheet, cells_updated=len(expanded))
@@ -1904,6 +1956,7 @@ def insert_chart(req: InsertChartReq) -> dict[str, Any]:
         anchor = f"{_col_to_letter(anchor_col)}{row0}"
         ws_f.add_chart(chart, anchor)
         entry["wb_f"].save(entry["path"])
+        _recalculate_workbook_with_libreoffice(Path(entry["path"]))
         _reload_file_from_disk(req.file_id)
         _clear_file_caches(req.file_id, req.sheet)
     data_range = f"{_col_to_letter(col0)}{row0}:{_col_to_letter(col0 + band_w - 1)}{row0 + band_h - 1}"

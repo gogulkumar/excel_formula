@@ -283,20 +283,25 @@ export default function SheetPage() {
 
   const [activeAnalysisTable, setActiveAnalysisTable] = useState<TableRegion | null>(null);
 
-  const tableBorders = useState(() => new Set<string>())[0];
-  useEffect(() => {
-    tableBorders.clear();
+  const tableBoundaryMap = useMemo(() => {
+    const map = new Map<string, { top: boolean; right: boolean; bottom: boolean; left: boolean }>();
     const tablesToHighlight = panelKind === "tables" ? (activeAnalysisTable ? [activeAnalysisTable] : tables) : [];
     tablesToHighlight.forEach((table) => {
       const parsed = parseRange(table.range);
       if (!parsed) return;
       for (let r = parsed.r1; r <= parsed.r2; r += 1) {
         for (let c = parsed.c1; c <= parsed.c2; c += 1) {
-          tableBorders.add(`${colToLetter(c)}${r}`);
+          map.set(`${colToLetter(c)}${r}`, {
+            top: r === parsed.r1,
+            right: c === parsed.c2,
+            bottom: r === parsed.r2,
+            left: c === parsed.c1,
+          });
         }
       }
     });
-  }, [tableBorders, tables, activeAnalysisTable, panelKind]);
+    return map;
+  }, [tables, activeAnalysisTable, panelKind]);
 
   useEffect(() => {
     if (panelKind !== "tables" && activeAnalysisTable) {
@@ -308,14 +313,14 @@ export default function SheetPage() {
 
 
   return (
-    <main className="flex h-screen flex-col overflow-hidden bg-bg-deep">
+    <main className="flex min-h-screen flex-col overflow-x-hidden bg-bg-deep xl:h-screen xl:overflow-hidden">
       <AppHeader step={3} filename={file?.filename} fileId={fileId} downloadHref={downloadWorkbookUrl(fileId)} backHref={`/workbook/${fileId}`} />
-      <div className="mx-auto flex w-full flex-1 min-h-0 max-w-[1600px] gap-6 px-6 py-6">
-        <section className={`${panelVisible ? "w-[45%]" : "w-full"} flex flex-col min-w-0 transition-all duration-300`}>
+      <div className="mx-auto flex w-full flex-1 min-h-0 max-w-[1600px] flex-col gap-4 px-4 py-4 sm:px-6 sm:py-6 xl:flex-row xl:gap-6">
+        <section className={`${panelVisible ? "xl:w-[45%]" : "xl:w-full"} flex w-full min-w-0 flex-col transition-all duration-300`}>
           <div className="flex flex-1 flex-col min-h-0 overflow-hidden rounded-[32px] border border-border-subtle bg-white">
-            <div className="flex-none flex flex-wrap items-center justify-between gap-4 border-b border-border-subtle p-5">
+            <div className="flex-none flex flex-wrap items-center justify-between gap-4 border-b border-border-subtle p-4 sm:p-5">
               <div>
-                <h1 className="text-2xl font-medium">{sheet}</h1>
+                <h1 className="text-xl font-medium sm:text-2xl">{sheet}</h1>
                 <p className="mt-1 text-sm text-text-secondary">{progress}</p>
                 <button
                   onClick={() => setSheetPickerOpen(true)}
@@ -324,7 +329,7 @@ export default function SheetPage() {
                   Switch sheet • {currentSheetOrdinal}/{file?.sheets.length || 0} • Cmd/Ctrl+K
                 </button>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex w-full flex-wrap items-center gap-3 sm:w-auto">
                 <button className="rounded-2xl bg-accent px-4 py-3 text-white" onClick={() => setPanelKind("tables")}>
                   Analysis
                 </button>
@@ -347,7 +352,24 @@ export default function SheetPage() {
                 ) : null}
               </div>
             </div>
-            <div className="flex-1 overflow-auto bg-[#fbfaf7] p-4">
+            <div className="flex-1 overflow-auto bg-[#fbfaf7] p-3 sm:p-4">
+              {!sheetData && (
+                <div className="space-y-2 p-2">
+                  <div className="flex gap-2">
+                    {Array.from({ length: 6 }).map((_, i) => (
+                      <div key={i} className="animate-shimmer h-7 rounded flex-1" style={{ animationDelay: `${i * 60}ms` }} />
+                    ))}
+                  </div>
+                  {Array.from({ length: 12 }).map((_, r) => (
+                    <div key={r} className="flex gap-2">
+                      <div className="animate-shimmer h-7 w-8 rounded flex-none opacity-50" />
+                      {Array.from({ length: 6 }).map((_, c) => (
+                        <div key={c} className="animate-shimmer h-7 rounded flex-1" style={{ animationDelay: `${(r * 6 + c) * 20}ms`, opacity: 1 - r * 0.05 }} />
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )}
               <div className="shadow-sm border border-[#e1dfdd] bg-white rounded-lg overflow-hidden">
                 <table className="min-w-full border-collapse select-none">
                   <thead className="sticky top-0 z-10 bg-[#f3f2f1] shadow-sm">
@@ -367,14 +389,15 @@ export default function SheetPage() {
                           const cell = row.find((item) => item.r === ref) || { r: ref, v: "", f: null };
                           const selected = selectedCell?.r === ref;
                           const highlighted = highlightCell === ref;
-                          const isTable = tableBorders.has(ref);
+                          const boundary = tableBoundaryMap.get(ref);
+                          const isTable = Boolean(boundary);
                           return (
                             <td key={ref} className={`relative border border-[#e1dfdd] p-0 ${selected ? "z-20" : ""} ${isTable ? "z-10" : ""}`}>
                               <button
                                 id={`cell-${ref}`}
                                 title={`${cell.m || getCellMeta(ref)} ${cell.f || ""}`.trim()}
                                 onClick={() => void handleTrace(cell)}
-                                className={`h-8 w-full min-w-[120px] px-2 text-left text-sm tabular-nums outline-none transition-colors ${!isTable && cell.f ? "bg-[#fcfaf8]" : ""} ${!isTable && !cell.f ? "bg-white" : ""} ${selected ? "ring-2 ring-inset ring-[#107c41] bg-[#f2fcf6]" : "hover:bg-[#f3f2f1]"} ${highlighted ? "ring-2 ring-inset ring-blue" : ""} ${isTable && !selected ? "ring-2 ring-inset ring-[#107c41] bg-[#eef5f2]" : ""}`}
+                                className={`h-8 w-full min-w-[96px] px-2 text-left text-xs tabular-nums outline-none transition-colors sm:min-w-[120px] sm:text-sm ${!isTable && cell.f ? "bg-[#fcfaf8]" : ""} ${!isTable && !cell.f ? "bg-white" : ""} ${selected ? "ring-2 ring-inset ring-[#f97316] bg-[#fff7ed]" : "hover:bg-[#f5f4f1]"} ${highlighted ? "ring-2 ring-inset ring-blue" : ""} ${isTable && !selected ? "ring-2 ring-inset ring-[#f97316]/50 bg-[#fff7ed]/60" : ""}`}
                                 style={{
                                   backgroundColor: cell.s?.bg || undefined,
                                   color: cell.s?.fg || undefined,
@@ -384,9 +407,17 @@ export default function SheetPage() {
                               >
                                 {cell.v || (cell.f ? "" : "")}
                                 {cell.f && !cell.v && <span className="text-[10px] text-text-tertiary italic">ƒx</span>}
-                                {cell.f && <div className="absolute top-0 right-0 w-0 h-0 border-t-[6px] border-l-[6px] border-t-[#107c41] border-l-transparent opacity-60"></div>}
+                                {cell.f && <div className="absolute top-0 right-0 w-0 h-0 border-t-[6px] border-l-[6px] border-t-[#f97316] border-l-transparent opacity-60"></div>}
                               </button>
-                              {selected && <div className="absolute -bottom-1 -right-1 z-30 h-1.5 w-1.5 bg-[#107c41] border border-white cursor-crosshair shadow-sm"></div>}
+                              {boundary ? (
+                                <div className="pointer-events-none absolute inset-0 z-20">
+                                  {boundary.top ? <div className="absolute left-0 top-0 h-[2px] w-full bg-[#0f766e]" /> : null}
+                                  {boundary.right ? <div className="absolute right-0 top-0 h-full w-[2px] bg-[#0f766e]" /> : null}
+                                  {boundary.bottom ? <div className="absolute bottom-0 left-0 h-[2px] w-full bg-[#0f766e]" /> : null}
+                                  {boundary.left ? <div className="absolute left-0 top-0 h-full w-[2px] bg-[#0f766e]" /> : null}
+                                </div>
+                              ) : null}
+                              {selected && <div className="absolute -bottom-1 -right-1 z-30 h-1.5 w-1.5 bg-[#f97316] border border-white cursor-crosshair shadow-sm"></div>}
                             </td>
                           );
                         })}
@@ -396,9 +427,17 @@ export default function SheetPage() {
                 </table>
               </div>
             </div>
-            <div className="flex-none flex gap-2 overflow-auto border-t border-border-subtle bg-bg-elevated p-3">
+            <div className="flex-none flex gap-1 overflow-auto border-t border-border-subtle bg-bg-elevated px-3 pt-2 pb-0">
               {(file?.sheets || []).map((tab) => (
-                <button key={tab} onClick={() => router.push(`/workbook/${fileId}/${encodeURIComponent(tab)}`)} className={`rounded-t-2xl border-t-2 px-4 py-3 text-sm ${tab === sheet ? "border-accent bg-white" : "border-transparent hover:border-border-medium"}`}>
+                <button
+                  key={tab}
+                  onClick={() => router.push(`/workbook/${fileId}/${encodeURIComponent(tab)}`)}
+                  className={`flex-none rounded-t-xl border-b-2 px-4 pb-2.5 pt-2 text-sm font-medium transition-all duration-150 whitespace-nowrap ${
+                    tab === sheet
+                      ? "border-accent bg-white text-accent shadow-[0_-1px_3px_rgba(0,0,0,0.06)]"
+                      : "border-transparent text-text-secondary hover:border-border-medium hover:text-text-primary"
+                  }`}
+                >
                   {tab}
                 </button>
               ))}
@@ -406,8 +445,8 @@ export default function SheetPage() {
           </div>
         </section>
         <aside
-          className={`${renderedPanelKind ? "w-[55%] opacity-100" : "pointer-events-none w-[55%] opacity-0"} min-w-0 transition-[margin-right,opacity] duration-[320ms] ease-out will-change-[margin-right,opacity]`}
-          style={{ marginRight: panelKind ? 0 : "-55%" }}
+          className={`${renderedPanelKind ? "max-h-[9999px] w-full opacity-100 xl:w-[55%]" : "pointer-events-none max-h-0 w-full overflow-hidden opacity-0 xl:w-[55%]"} min-w-0 transition-[margin-right,opacity] duration-[320ms] ease-out will-change-[margin-right,opacity]`}
+          style={{ marginRight: panelKind ? 0 : 0 }}
         >
           {renderedPanelKind === "trace" ? (
             <TracePanel
@@ -446,6 +485,8 @@ export default function SheetPage() {
               fileId={fileId}
               sheet={sheet}
               tables={tables}
+              sheetData={sheetData}
+              onTablesChange={setTables}
               onClose={() => {
                 setActiveAnalysisTable(null);
                 setPanelKind(null);
