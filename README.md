@@ -139,35 +139,32 @@ This creates a Python virtual environment, installs all backend dependencies, an
 cp app/.env.example app/.env
 ```
 
-**Minimal config for local development (no LLM credentials needed):**
+**Backend / legacy split mode config:**
 
 ```env
 EFT_RUNTIME=local
 EFT_API_ENV=test
-EFT_LLM_MODE=mock
-NEXT_PUBLIC_API_URL=http://localhost:8000
+EFT_LLM_MODE=live
+OPENAI_API_KEY=YOUR_OPENAI_API_KEY
 APP_NAME=calcsense
 AWS_REGION=us-east-1
 ```
 
-**For live AI features via OpenAI-compatible proxy:**
+**Optional OpenAI-compatible base URL override:**
 
 ```env
-EFT_LLM_MODE=live
-EFT_OPENAI_PROXY_URL=https://your-proxy.example.com/v1/proxy/azure-openai
-EFT_PROXY_AUTH_TOKEN=Basic YOUR_TOKEN
-```
-
-**For AWS Bedrock:**
-
-```env
-EFT_LLM_MODE=live
-EFT_BEDROCK_PROXY_URL=https://your-proxy.example.com/v1/proxy/bedrock
-EFT_PROXY_AUTH_TOKEN=Basic YOUR_TOKEN
-AWS_REGION=us-east-1
+OPENAI_BASE_URL=https://api.openai.com/v1
 ```
 
 > Never commit secrets. All sensitive values belong in `.env` which is gitignored.
+
+**For one-project local Next.js mode:**
+
+Use [app/frontend/.env.local](</Users/gogulkumar/Desktop/GitHub/excel_formula/app/frontend/.env.local>) and set:
+
+```env
+OPENAI_API_KEY=YOUR_OPENAI_API_KEY
+```
 
 ### 3. Run
 
@@ -181,7 +178,7 @@ make start
 | Backend | http://localhost:8000 |
 | API Docs | http://localhost:8000/docs |
 
-**Custom ports:**
+**Custom ports for legacy split mode:**
 
 ```bash
 make start BACKEND_PORT=8010 FRONTEND_PORT=3001 NEXT_PUBLIC_API_URL=http://localhost:8010
@@ -193,57 +190,49 @@ make start BACKEND_PORT=8010 FRONTEND_PORT=3001 NEXT_PUBLIC_API_URL=http://local
 make stop
 ```
 
-## Vercel Frontend + Separate Backend
+## Vercel One-Project Deployment
 
-For the current architecture, the clean deployment path is:
+Recommended deployment path now:
 
-- deploy [app/frontend](</Users/gogulkumar/Desktop/GitHub/excel_formula/app/frontend>) to Vercel
-- deploy the FastAPI backend to a persistent host like Render, Railway, or Fly
+- deploy only [app/frontend](</Users/gogulkumar/Desktop/GitHub/excel_formula/app/frontend>) to Vercel
+- use the built-in Next.js route handlers under `/api/*`
+- keep the app on one Vercel project and one origin
 
-Recommended Vercel environment variable:
+Exact frontend deployment:
+
+- Vercel Root Directory: `app/frontend`
+- Set:
+
+```env
+OPENAI_API_KEY=YOUR_OPENAI_API_KEY
+```
+
+Important:
+
+- leave `NEXT_PUBLIC_API_URL` unset
+- leave `BACKEND_PROXY_URL` unset
+- otherwise the deployed app may incorrectly call `localhost` or an old external backend
+
+How it works:
+
+- the frontend defaults to same-origin `/api/*`
+- [app/frontend/src/lib/constants.ts](</Users/gogulkumar/Desktop/GitHub/excel_formula/app/frontend/src/lib/constants.ts>) keeps `API` empty by default
+- the browser talks to the Vercel app itself for upload, tracing, chat, editing, and workbook actions
+
+## Legacy Split Deployment
+
+Only use this if you intentionally want a separate backend host.
+
+Then you may set:
 
 ```env
 BACKEND_PROXY_URL=https://your-backend.example.com
 ```
 
-Exact frontend deployment:
-
-- Vercel Root Directory: `app/frontend`
-- Set `BACKEND_PROXY_URL=https://your-backend.example.com`
-- Leave `NEXT_PUBLIC_API_URL` unset if you want proxy mode
-- If you prefer direct browser-to-backend calls instead, set:
+or
 
 ```env
 NEXT_PUBLIC_API_URL=https://your-backend.example.com
-```
-
-How it works:
-
-- the frontend defaults to `/backend` as its API base
-- [app/frontend/next.config.ts](</Users/gogulkumar/Desktop/GitHub/excel_formula/app/frontend/next.config.ts>) rewrites `/backend/:path*` to `BACKEND_PROXY_URL`
-- the browser keeps talking to the Vercel frontend origin, while Next.js proxies requests to FastAPI
-
-Minimum backend environment variables:
-
-```env
-EFT_RUNTIME=local
-EFT_API_ENV=test
-EFT_LLM_MODE=live
-OPENAI_API_KEY=YOUR_OPENAI_API_KEY
-AWS_REGION=us-east-1
-APP_NAME=calcsense
-WHISPER_MODEL_SIZE=small
-CALCSENSE_CORS_ORIGINS=https://your-frontend.vercel.app
-CALCSENSE_TRUSTED_HOSTS=your-backend.example.com
-CALCSENSE_LOG_LEVEL=INFO
-CALCSENSE_USE_LIBREOFFICE_RECALC=false
-```
-
-Optional backend variables:
-
-```env
-OPENAI_BASE_URL=https://your-openai-compatible-endpoint.example.com/v1
-LIBREOFFICE_BIN=/path/to/soffice
 ```
 
 ---
