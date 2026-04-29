@@ -43,6 +43,15 @@ export interface TableRegion {
   headers: string[];
   has_header: boolean;
   preview: string[][];
+  preferences?: {
+    metric_axis?: "row" | "column";
+    selected_metric_label?: string;
+    overrides?: Array<{
+      scope: "row" | "column";
+      target: string;
+      kind: "metric" | "numeric";
+    }>;
+  };
 }
 
 // ─── Column utilities ─────────────────────────────────────────────────────────
@@ -660,10 +669,89 @@ export interface TableMetric {
   cells: TraceNode[];
 }
 
+function normalizedText(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  return String(value).trim();
+}
+
+function getTableCellDisplay(ws: XLSX.WorkSheet, row: number, col: number): string {
+  return normalizedText((ws[`${colToLetter(col)}${row}`] as XLSX.CellObject | undefined)?.v);
+}
+
+function inferMetricLabelColumn(
+  table: TableRegion | undefined,
+  r: { r1: number; c1: number; r2: number; c2: number },
+  ws: XLSX.WorkSheet,
+): number {
+  const metricOverride = table?.preferences?.overrides?.find(
+    (item) => item.scope === "column" && item.kind === "metric",
+  );
+  if (metricOverride) {
+    const index = table?.headers.findIndex((header) => header === metricOverride.target) ?? -1;
+    if (index >= 0) return r.c1 + index;
+  }
+
+  let bestCol = r.c1;
+  let bestScore = -1;
+  for (let col = r.c1; col <= r.c2; col += 1) {
+    let textCount = 0;
+    let formulaCount = 0;
+    for (let row = r.r1 + 1; row <= r.r2; row += 1) {
+      const ref = `${colToLetter(col)}${row}`;
+      const cell = ws[ref] as XLSX.CellObject | undefined;
+      const value = normalizedText(cell?.v);
+      if (!value) continue;
+      if (cell?.f) formulaCount += 1;
+      else if (!isNumericish(value)) textCount += 1;
+    }
+    const score = textCount * 3 - formulaCount;
+    if (score > bestScore) {
+      bestScore = score;
+      bestCol = col;
+    }
+  }
+  return bestCol;
+}
+
+function inferValueColumns(
+  table: TableRegion | undefined,
+  r: { r1: number; c1: number; r2: number; c2: number },
+  ws: XLSX.WorkSheet,
+): number[] {
+  const numericOverrides = new Set(
+    (table?.preferences?.overrides || [])
+      .filter((item) => item.scope === "column" && item.kind === "numeric")
+      .map((item) => item.target),
+  );
+  const overridden = Array.from(numericOverrides)
+    .map((header) => table?.headers.findIndex((item) => item === header) ?? -1)
+    .filter((index) => index >= 0)
+    .map((index) => r.c1 + index);
+  if (overridden.length) return overridden;
+
+  const candidates: Array<{ col: number; score: number }> = [];
+  for (let col = r.c1; col <= r.c2; col += 1) {
+    let formulas = 0;
+    let numeric = 0;
+    for (let row = r.r1 + 1; row <= r.r2; row += 1) {
+      const ref = `${colToLetter(col)}${row}`;
+      const cell = ws[ref] as XLSX.CellObject | undefined;
+      const value = normalizedText(cell?.v);
+      if (cell?.f) formulas += 1;
+      else if (value && isNumericish(value)) numeric += 1;
+    }
+    const score = formulas * 3 + numeric;
+    if (score > 0) candidates.push({ col, score });
+  }
+  candidates.sort((a, b) => b.score - a.score || a.col - b.col);
+  return candidates.slice(0, 3).map((item) => item.col);
+}
+
 export function extractTableMetrics(
   wb: XLSX.WorkBook,
   sheet: string,
   tableRange: string,
+  table?: TableRegion,
   maxDepth = 5,
 ): TableMetric[] {
   const r = decodeRange(tableRange);
@@ -671,16 +759,33 @@ export function extractTableMetrics(
   const ws = wb.Sheets[sheet];
   if (!ws) return [];
 
-  // Find formula cells in the table's last column (output column pattern)
   const metrics: TableMetric[] = [];
   const seen = new Set<string>();
+  const labelCol = inferMetricLabelColumn(table, r, ws);
+  const valueCols = inferValueColumns(table, r, ws);
+  const metricRowOverrides = new Set(
+    (table?.preferences?.overrides || [])
+      .filter((item) => item.scope === "row" && item.kind === "metric")
+      .map((item) => item.target),
+  );
 
-  for (let row = r.r1; row <= r.r2; row++) {
-    for (let col = r.c2; col >= r.c1; col--) {
+  for (let row = r.r1 + 1; row <= r.r2; row += 1) {
+    const rowLabel = getTableCellDisplay(ws, row, labelCol);
+    const includeRow = rowLabel && (!metricRowOverrides.size || metricRowOverrides.has(rowLabel));
+    for (const col of valueCols) {
       const ref = `${colToLetter(col)}${row}`;
       const cell = ws[ref] as XLSX.CellObject | undefined;
       if (!cell?.f) continue;
-      const label = computeCellLabel(wb, sheet, ref);
+      let label = rowLabel || computeCellLabel(wb, sheet, ref);
+      if (!includeRow && metricRowOverrides.size) continue;
+      const headerOffset = col - r.c1;
+      const columnHeader = table?.headers[headerOffset] || getTableCellDisplay(ws, r.r1, col);
+      if (columnHeader && columnHeader !== rowLabel && valueCols.length > 1) {
+        label = rowLabel ? `${rowLabel} · ${columnHeader}` : columnHeader;
+      }
+      if (!label || label === `${sheet}!${ref}` || label.toLowerCase() === "value") {
+        label = rowLabel || columnHeader || `${sheet}!${ref}`;
+      }
       if (seen.has(label)) continue;
       seen.add(label);
       const trace = addMetaToTrace(wb, traceNode(wb, sheet, ref, new Set(), 0, maxDepth));

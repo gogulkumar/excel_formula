@@ -16,9 +16,29 @@ import type {
 async function readJson<T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
   const res = await fetch(input, init);
   if (!res.ok) {
-    throw new Error(await res.text());
+    throw new Error(await readErrorMessage(res));
   }
   return res.json();
+}
+
+async function readErrorMessage(res: Response): Promise<string> {
+  const contentType = res.headers.get("content-type") || "";
+  const text = await res.text();
+  if (contentType.includes("text/html")) {
+    if (res.status === 404) {
+      return "This deployment is missing the requested app route (404).";
+    }
+    return `The server returned HTML instead of API data (${res.status}).`;
+  }
+  if (text.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(text) as { error?: string; detail?: string };
+      return parsed.error || parsed.detail || text;
+    } catch {
+      return text;
+    }
+  }
+  return text;
 }
 
 async function parseSse(
@@ -26,7 +46,7 @@ async function parseSse(
   onEvent: (event: Record<string, unknown>) => void,
 ) {
   if (!res.ok) {
-    throw new Error(await res.text());
+    throw new Error(await readErrorMessage(res));
   }
   if (!res.body) throw new Error("No reader");
   const reader = res.body.getReader();
@@ -180,7 +200,7 @@ async function startTaskAndStream(
   }
 
   // Legacy Python backend: returns {task_id} or {cached, text}
-  if (!res.ok) throw new Error(await res.text());
+  if (!res.ok) throw new Error(await readErrorMessage(res));
   const started = (await res.json()) as TaskStartResponse;
   if (started.cached && started.text) {
     onText(started.text);

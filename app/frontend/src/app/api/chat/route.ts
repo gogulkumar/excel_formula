@@ -1,5 +1,5 @@
 export const runtime = "nodejs";
-import { sseStream, jsonError, readWorkbook } from "@/lib/server/storage";
+import { sseStream, jsonError, readWorkbook, notFound } from "@/lib/server/storage";
 import { streamChat, buildWorkbookContext } from "@/lib/server/llm";
 
 export async function POST(request: Request) {
@@ -14,10 +14,11 @@ export async function POST(request: Request) {
   if (!file_id || !message) return jsonError("file_id and message are required");
 
   const wb = readWorkbook(file_id);
+  if (!wb) {
+    return notFound("Workbook session not found. Re-upload the workbook and try again.");
+  }
 
-  const context = wb
-    ? buildWorkbookContext(wb, file_id, sheet, focus_cells)
-    : "No workbook context available.";
+  const context = buildWorkbookContext(wb, file_id, sheet, focus_cells);
 
   return sseStream(async (enqueue) => {
     for await (const chunk of streamChat(context, message, history)) {

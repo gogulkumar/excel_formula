@@ -1,5 +1,5 @@
 export const runtime = "nodejs";
-import { readWorkbook, jsonError, notFound } from "@/lib/server/storage";
+import { readWorkbook, jsonError, notFound, loadCachedTables } from "@/lib/server/storage";
 import { extractTableMetrics } from "@/lib/server/excel";
 
 export async function POST(request: Request) {
@@ -11,6 +11,10 @@ export async function POST(request: Request) {
   const wb = readWorkbook(file_id);
   if (!wb) return notFound("File not found");
 
-  const metrics = extractTableMetrics(wb, sheet, range, Math.min(max_depth, 6));
-  return Response.json({ metrics });
+  const cachedTables = loadCachedTables(file_id, sheet) || [];
+  const activeTable = cachedTables.find((table) => table.range === range);
+  const metrics = extractTableMetrics(wb, sheet, range, activeTable, Math.min(max_depth, 6));
+  const totalFormulas = metrics.length;
+  const totalDeps = metrics.reduce((sum, metric) => sum + metric.cells.reduce((acc, cell) => acc + cell.deps.length, 0), 0);
+  return Response.json({ metrics, total_formulas: totalFormulas, total_deps: totalDeps });
 }

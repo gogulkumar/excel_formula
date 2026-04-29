@@ -74,6 +74,16 @@ function getRowOptions(table: TableRegion, metrics: TableMetric[]) {
   return table.preview.map((row, index) => row[0] || `Row ${index + 1}`).filter(Boolean);
 }
 
+function looksLikeRawMetricLabel(label: string) {
+  const trimmed = label.trim();
+  return /^.+![A-Z]{1,3}\d+$/i.test(trimmed) || /^value$/i.test(trimmed);
+}
+
+function getMetricDisplayLabel(item: TableMetric) {
+  const fallback = item.cells[0]?.meta || item.cells[0]?.cell || "Detected metric";
+  return looksLikeRawMetricLabel(item.label) ? fallback : item.label;
+}
+
 export function TableAnalysisPanel({
   fileId,
   sheet,
@@ -323,9 +333,9 @@ export function TableAnalysisPanel({
           ))}
         </div>
         {selectedTable ? (
-          <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto]">
+          <div className="mt-4 grid gap-3 xl:grid-cols-[minmax(0,1fr)_auto]">
             <div className="flex min-w-0 items-center gap-2">
-              <label className="text-xs uppercase tracking-[0.18em] text-text-tertiary">Table range</label>
+              <label className="text-xs uppercase tracking-[0.18em] text-text-tertiary">Boundary</label>
               <input
                 value={rangeDraft}
                 onChange={(event) => setRangeDraft(event.target.value)}
@@ -336,28 +346,28 @@ export function TableAnalysisPanel({
                 onClick={handleSaveRange}
                 disabled={savingRange || rangeDraft.trim().toUpperCase() === selectedTable.range}
               >
-                {savingRange ? "Saving..." : "Save"}
+                {savingRange ? "Saving..." : "Save boundary"}
               </button>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <label className="text-xs uppercase tracking-[0.18em] text-text-tertiary">Axis</label>
+              <label className="text-xs uppercase tracking-[0.18em] text-text-tertiary">Interpretation</label>
               <select
                 value={metricAxis}
                 onChange={(event) => void handleMetricAxisChange(event.target.value as "row" | "column")}
                 className="rounded-xl border border-border-subtle bg-bg-deep px-3 py-2 text-sm outline-none transition focus:border-accent"
               >
-                <option value="column">Column based</option>
-                <option value="row">Row based</option>
+                <option value="column">Metrics run by row</option>
+                <option value="row">Metrics run by column</option>
               </select>
             {columnOptions.length > 1 ? (
               <div className="flex items-center gap-2">
-                <label className="text-xs uppercase tracking-[0.18em] text-text-tertiary">Column</label>
+                <label className="text-xs uppercase tracking-[0.18em] text-text-tertiary">Analyze column</label>
                 <select
                   value={selectedColumn}
                   onChange={(event) => setSelectedColumn(event.target.value === "all" ? "all" : Number(event.target.value))}
                   className="rounded-xl border border-border-subtle bg-bg-deep px-3 py-2 text-sm outline-none transition focus:border-accent"
                 >
-                  <option value="all">All columns</option>
+                  <option value="all">All detected value columns</option>
                   {columnOptions.map((option) => (
                     <option key={option.col} value={option.col}>
                       {option.header}
@@ -368,16 +378,16 @@ export function TableAnalysisPanel({
             ) : null}
             {filteredMetrics.length > 1 ? (
               <div className="flex items-center gap-2">
-                <label className="text-xs uppercase tracking-[0.18em] text-text-tertiary">Metric</label>
+                <label className="text-xs uppercase tracking-[0.18em] text-text-tertiary">Focus metric</label>
                 <select
                   value={selectedMetricLabel}
                   onChange={(event) => void handleMetricLabelChange(event.target.value)}
                   className="max-w-[220px] rounded-xl border border-border-subtle bg-bg-deep px-3 py-2 text-sm outline-none transition focus:border-accent"
                 >
-                  <option value="">All metrics</option>
+                  <option value="">All detected metrics</option>
                   {filteredMetrics.map((item) => (
-                    <option key={item.label} value={item.label}>
-                      {item.label}
+                    <option key={`${item.label}-${item.cells[0]?.cell || ""}`} value={item.label}>
+                      {getMetricDisplayLabel(item)}
                     </option>
                   ))}
                 </select>
@@ -388,7 +398,7 @@ export function TableAnalysisPanel({
         ) : null}
         {selectedTable ? (
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            <label className="text-xs uppercase tracking-[0.18em] text-text-tertiary">Treat</label>
+            <label className="text-xs uppercase tracking-[0.18em] text-text-tertiary">Override role</label>
             <select
               value={overrideScope}
               onChange={(event) => {
@@ -424,7 +434,7 @@ export function TableAnalysisPanel({
               onClick={() => void handleSaveOverride()}
               disabled={!overrideTarget || savingPreferences}
             >
-              {savingPreferences ? "Saving..." : "Apply"}
+              {savingPreferences ? "Saving..." : "Apply role"}
             </button>
             {(selectedTable.preferences?.overrides || []).map((item) => (
               <div key={`${item.scope}-${item.target}`} className="rounded-full border border-border-subtle bg-bg-deep px-3 py-1.5 text-xs text-text-secondary">
@@ -445,7 +455,7 @@ export function TableAnalysisPanel({
               <div className="flex flex-col gap-2">
                 {filteredMetrics.map((item, index) => (
                   <button key={`${item.label}-${index}`} onClick={() => setSelectedMetricIndex(index)} className={`block w-full rounded-xl p-3.5 text-left transition-all hover:-translate-y-0.5 ${selectedMetricIndex === index ? "bg-white shadow-md ring-1 ring-[#e1dfdd] scale-[1.02]" : "bg-transparent hover:bg-[#edebe9]"}`}>
-                    <div className={`text-sm font-semibold ${selectedMetricIndex === index ? "text-accent" : "text-[#323130]"}`}>{item.label}</div>
+                    <div className={`text-sm font-semibold ${selectedMetricIndex === index ? "text-accent" : "text-[#323130]"}`}>{getMetricDisplayLabel(item)}</div>
                     <div className={`mt-1.5 font-mono-ui text-[10px] tracking-wider ${selectedMetricIndex === index ? "text-[#605e5c]" : "text-[#a19f9d]"}`}>{item.cells[0]?.cell}</div>
                   </button>
                 ))}
